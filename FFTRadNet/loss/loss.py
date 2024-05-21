@@ -1,18 +1,22 @@
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
+import matplotlib.pyplot as plt
+import os
 
-import torch.nn as nn
 class FocalLoss(nn.Module):
     """
     Focal loss class. Stabilize training by reducing the weight of easily classified background sample and focussing
     on difficult foreground detections.
     """
 
-    def __init__(self, gamma=0, size_average=False):
+    #def __init__(self, gamma=0, size_average=False):
+    def __init__(self, alpha=0.25, gamma=0, size_average=False):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
         self.size_average = size_average
+
+        self.alpha = alpha
 
     def forward(self, prediction, target):
 
@@ -20,7 +24,8 @@ class FocalLoss(nn.Module):
         pt = torch.where(target == 1.0, prediction, 1-prediction)
 
         # compute focal loss
-        loss = -1 * (1-pt)**self.gamma * torch.log(pt+1e-6)
+        #loss = -1 * (1-pt)**self.gamma * torch.log(pt+1e-6)
+        loss = -self.alpha * (1-pt)**self.gamma * torch.log(pt+1e-6)
 
         if self.size_average:
             return loss.mean()
@@ -41,7 +46,8 @@ def pixor_loss(batch_predictions, batch_labels,param):
         classification_loss = focal_loss(classification_prediction, classification_label)
     else:
         classification_loss = F.binary_cross_entropy(classification_prediction.double(), classification_label.double(),reduction='sum')
-
+    print('classification_loss')
+    print(classification_loss)
     
     #####################
     #  Regression loss  #
@@ -63,14 +69,38 @@ def pixor_loss(batch_predictions, batch_labels,param):
     P = batch_predictions[:,1:]
     M = batch_labels[:,0].unsqueeze(1)
 
+    batch_predictions[0, 0, :, :]
+
+    # print('regression prediction in batch')
+    # print(batch_predictions.shape)
+    # print(batch_predictions[0:10, 0])
+
+    # print('regression prediction with onlt positive in batch')
+    # print((P*M).shape)
+    # print((P*M)[0:10, 0])
+    # print('sum P*M', (P*M).sum()) # ex. 2.85
+    # print('sum M', M.sum()) # ex. 2.85
+    # print('regression labels in batch')
+    # print(batch_labels.shape)
+    # print(batch_labels[0:10, 1])
+    # print('labels sum', batch_labels[:,1:].sum()) #ex. 2014
+
     if(param['regression']=='SmoothL1Loss'):
         reg_loss_fct = nn.SmoothL1Loss(reduction='sum')
     else:
         reg_loss_fct = nn.L1Loss(reduction='sum')
     
     regression_loss = reg_loss_fct(P*M,T)
+    print('regression_loss')
+    print(regression_loss)
     NbPts = M.sum()
     if(NbPts>0):
         regression_loss/=NbPts
 
     return classification_loss,regression_loss
+    
+
+
+
+    
+    

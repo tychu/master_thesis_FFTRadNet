@@ -283,13 +283,13 @@ class Metrics():
 
     def update(self,PredMap,label_map,ObjectPred,Objectlabels,threshold=0.2,range_min=5,range_max=70):
 
-        if(len(PredMap)>0):
-            pred = PredMap.reshape(-1)>=0.5
-            label = label_map.reshape(-1)
+        # if(len(PredMap)>0):
+        #     pred = PredMap.reshape(-1)>=0.5
+        #     label = label_map.reshape(-1)
 
-            intersection = np.abs(pred*label).sum()
-            union = np.sum(label) + np.sum(pred) -intersection
-            self.iou.append(intersection /union)
+        #     intersection = np.abs(pred*label).sum()
+        #     union = np.sum(label) + np.sum(pred) -intersection
+        #     self.iou.append(intersection /union)
 
         TP,FP,FN = GetDetMetrics(ObjectPred,Objectlabels,threshold=0.2,range_min=range_min,range_max=range_max)
 

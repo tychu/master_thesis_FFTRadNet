@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from torch.nn.modules.container import Sequential
 from torchvision.transforms.transforms import Sequence
 
-NbTxAntenna = 12
-NbRxAntenna = 16
+NbTxAntenna = 4 #12 
+NbRxAntenna = 16 
 NbVirtualAntenna = NbTxAntenna * NbRxAntenna
 
 def conv3x3(in_planes, out_planes, stride=1, bias=False):
@@ -108,6 +108,7 @@ class MIMO_PreEncoder(nn.Module):
         super(MIMO_PreEncoder, self).__init__()
         self.use_bn = use_bn
 
+        # convolution layer 1 kernel size 1*NTx (NTx=12)
         self.conv = nn.Conv2d(in_layer, out_layer, kernel_size, 
                               stride=(1, 1), padding=0,dilation=dilation, bias= (not use_bn) )
      
@@ -132,8 +133,8 @@ class FPN_BackBone(nn.Module):
         self.block_expansion = block_expansion
         self.use_bn = use_bn
 
-        # pre processing block to reorganize MIMO channels
-        self.pre_enc = MIMO_PreEncoder(32,mimo_layer,
+        # pre processing block to reorganize MIMO channels ##  2 * The number of input channels is the number NRx of Rx antennas=16
+        self.pre_enc = MIMO_PreEncoder(NbRxAntenna*2,mimo_layer,
                                         kernel_size=(1,NbTxAntenna),
                                         dilation=(1,NbRxAntenna),
                                         use_bn = True)

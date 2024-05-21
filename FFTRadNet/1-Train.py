@@ -6,9 +6,10 @@ import random
 import numpy as np
 from pathlib import Path
 from datetime import datetime
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 from model.FFTRadNet import FFTRadNet
 from dataset.dataset import RADIal
+from dataset.matlab_dataset import MATLAB
 from dataset.encoder import ra_encoder
 from dataset.dataloader import CreateDataLoaders
 import pkbar
@@ -18,6 +19,7 @@ import torch.nn.functional as F
 from loss import pixor_loss
 from utils.evaluation import run_evaluation
 import torch.nn as nn
+import matplotlib.pyplot as plt
 
 def main(config, resume):
 
@@ -44,19 +46,23 @@ def main(config, resume):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # Initialize tensorboard
-    writer = SummaryWriter(output_folder / exp_name)
+    #writer = SummaryWriter(output_folder / exp_name)
 
     # Load the dataset
     enc = ra_encoder(geometry = config['dataset']['geometry'], 
                         statistics = config['dataset']['statistics'],
                         regression_layer = 2)
     
-    dataset = RADIal(root_dir = config['dataset']['root_dir'],
-                        statistics= config['dataset']['statistics'],
-                        encoder=enc.encode,
-                        difficult=True)
+    #dataset = RADIal(root_dir = config['dataset']['root_dir'],
+    #                    statistics= config['dataset']['statistics'],
+    #                    encoder=enc.encode,
+    #                    difficult=True)
+    
+    dataset = MATLAB(root_dir = '/imec/other/ruoyumsc/users/chu/matlab-radar-automotive/simulation_data/', statistics= config['dataset']['statistics'], encoder=enc.encode)
+    print('finish MATLAB data transformations')
 
     train_loader, val_loader, test_loader = CreateDataLoaders(dataset,config['dataloader'],config['seed'])
+    
 
 
     # Create the model
@@ -120,6 +126,8 @@ def main(config, resume):
         running_loss = 0.0
         
         for i, data in enumerate(train_loader):
+            #print('data[1] shape')
+            #print(data[1].size)
             inputs = data[0].to('cuda').float()
             label_map = data[1].to('cuda').float()
             if(config['model']['SegmentationHead']=='True'):
@@ -132,25 +140,26 @@ def main(config, resume):
             with torch.set_grad_enabled(True):
                 outputs = net(inputs)
 
-
+            #print('label_map -> batch_labels')
+            #print(label_map.shape)
             classif_loss,reg_loss = pixor_loss(outputs['Detection'], label_map,config['losses'])           
                
-            prediction = outputs['Segmentation'].contiguous().flatten()
-            label = seg_map_label.contiguous().flatten()        
-            loss_seg = freespace_loss(prediction, label)
-            loss_seg *= inputs.size(0)
+            #prediction = outputs['Segmentation'].contiguous().flatten()
+            #label = seg_map_label.contiguous().flatten()        
+            #loss_seg = freespace_loss(prediction, label)
+            #loss_seg *= inputs.size(0)
 
             classif_loss *= config['losses']['weight'][0]
             reg_loss *= config['losses']['weight'][1]
-            loss_seg *=config['losses']['weight'][2]
+            #loss_seg *=config['losses']['weight'][2]
 
 
-            loss = classif_loss + reg_loss + loss_seg
+            loss = classif_loss + reg_loss #+ loss_seg
 
-            writer.add_scalar('Loss/train', loss.item(), global_step)
-            writer.add_scalar('Loss/train_clc', classif_loss.item(), global_step)
-            writer.add_scalar('Loss/train_reg', reg_loss.item(), global_step)
-            writer.add_scalar('Loss/train_freespace', loss_seg.item(), global_step)
+            #writer.add_scalar('Loss/train', loss.item(), global_step)
+            #writer.add_scalar('Loss/train_clc', classif_loss.item(), global_step)
+            #writer.add_scalar('Loss/train_reg', reg_loss.item(), global_step)
+            #writer.add_scalar('Loss/train_freespace', loss_seg.item(), global_step)
 
             # backprop
             loss.backward()
@@ -159,10 +168,20 @@ def main(config, resume):
             # statistics
             running_loss += loss.item() * inputs.size(0)
         
-            kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item()),("freeSpace", loss_seg.item())])
-
+            #kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), #("reg", reg_loss.item()),("freeSpace", loss_seg.item())])
+            
+            kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item()) ] )
             
             global_step += 1
+
+            # Check if this is the last iteration
+            if (i == len(train_loader) - 1 and epoch % 10 == 0 and epoch != 0):
+            #if (i == len(train_loader) - 1 and epoch != 0):
+                print(f"Last iteration in epoch {epoch}: batch {i}")
+                print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
+                # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
+                detection_plot(outputs['Detection'], label_map, epoch)
+                matrix_plot(outputs['Detection'], label_map, epoch)
 
 
         scheduler.step()
@@ -175,26 +194,32 @@ def main(config, resume):
         ## validation phase ##
         ######################
 
+        #eval = run_evaluation(net,val_loader,enc,check_perf=(epoch>=10),
+        #                        detection_loss=pixor_loss,segmentation_loss=freespace_loss,
+        #                        losses_params=config['losses'])
         eval = run_evaluation(net,val_loader,enc,check_perf=(epoch>=10),
-                                detection_loss=pixor_loss,segmentation_loss=freespace_loss,
+                                detection_loss=pixor_loss,segmentation_loss=None,
                                 losses_params=config['losses'])
 
         history['val_loss'].append(eval['loss'])
-        history['mAP'].append(eval['mAP'])
-        history['mAR'].append(eval['mAR'])
-        history['mIoU'].append(eval['mIoU'])
+        #history['mAP'].append(eval['mAP'])
+        #history['mAR'].append(eval['mAR'])
+        #history['mIoU'].append(eval['mIoU'])
 
-        kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR']),("mIoU", eval['mIoU'])])
+        #kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR']),("mIoU", eval['mIoU'])])
+        kbar.add(1, values=[("val_loss", eval['loss'])])
 
+            
 
-        writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
-        writer.add_scalar('Loss/test', eval['loss'], global_step)
-        writer.add_scalar('Metrics/mAP', eval['mAP'], global_step)
-        writer.add_scalar('Metrics/mAR', eval['mAR'], global_step)
-        writer.add_scalar('Metrics/mIoU', eval['mIoU'], global_step)
+        #writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
+        #writer.add_scalar('Loss/test', eval['loss'], global_step)
+        #writer.add_scalar('Metrics/mAP', eval['mAP'], global_step)
+        #writer.add_scalar('Metrics/mAR', eval['mAR'], global_step)
+        #writer.add_scalar('Metrics/mIoU', eval['mIoU'], global_step)
 
         # Saving all checkpoint as the best checkpoint for multi-task is a balance between both --> up to the user to decide
-        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_IOU_{:.4f}.pth'.format(epoch, eval['loss'],eval['mAP'],eval['mAR'],eval['mIoU'])
+        #name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_IOU_{:.4f}.pth'.format(epoch, eval['loss'],eval['mAP'],eval['mAR'],eval['mIoU'])
+        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}.pth'.format(epoch, eval['loss'])
         filename = output_folder / exp_name / name_output_file
 
         checkpoint={}
@@ -210,7 +235,86 @@ def main(config, resume):
         print('')
 
         
+### plot detection (classification)
+def detection_plot(predictions, labels, epoch):
+    prediction = predictions[:, 0, :, :]
+    print(prediction[0, 0:10, 0])
+    #target_prediction = (prediction > 0.5).float()
+    label = labels[:, 0, :, :]
+    # Specify the directory to save the plot
+    directory = './plot/'
+    # Iterate through each matrix
+    print("plotting data shape")
+    print(prediction.shape)
+    target_num = 0
+    for m in range(prediction.shape[0]):
+        # Extract the current matrix
+        pre = prediction[m]
+        lab = label[m]
+
+        # Create a figure
+        plt.figure(figsize=(6, 12))
+
+        # Plot pre: Red points
+        for i in range(pre.shape[0]):
+            for j in range(pre.shape[1]):
+                #if pre[i, j] == 1:
+                if pre[i, j] > 0.5:
+                    target_num += 1
+                    #print("predict target!!!")
+                    plt.scatter(j, i, color='red', s=1, label='prediction' if i == 0 and j == 0 else "")
+        print('number of targets in the prediction', target_num)
+        # Plot lab: Blue points
+        for i in range(lab.shape[0]):
+            for j in range(lab.shape[1]):
+                if lab[i, j] == 1:
+                    plt.scatter(j, i, color='blue', s=1, label='ground truth' if i == 0 and j == 0 else "")
+
+        # Set plot limits and labels
+        plt.xlim(0, pre.shape[1])
+        plt.ylim(0, pre.shape[0])
+        #plt.gca().invert_yaxis()  # To match matrix indexing
+        plt.xlabel('angle Index')
+        plt.ylabel('range Index')
+        plt.title('Comparison of prediction and labels')
         
+        # Save the plot with an incrementally named file
+        filepath = os.path.join(directory, f'plot_{epoch}_{m}.png')
+        plt.savefig(filepath)
+        print(f'Plot saved to {filepath}')
+
+        # Close the plot to free up memory
+        plt.close()        
+
+
+def matrix_plot(predictions, labels, epoch):
+    directory = './plot/'
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+    prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
+    #target_prediction = (prediction > 0.5).float()
+    label = labels[0, 0, :, :].detach().cpu().numpy().copy()
+
+    m1 = axs[0].imshow(prediction, cmap='magma', interpolation='none')
+    axs[0].set_title('prediction')
+    axs[0].set_xticks([])
+    axs[0].set_yticks([])
+    fig.colorbar(m1)
+
+    # Plot the second matrix
+    m2 = axs[1].imshow(label, cmap='magma', interpolation='none')
+    axs[1].set_title('label')
+    axs[1].set_xticks([])
+    axs[1].set_yticks([])
+    fig.colorbar(m2)
+
+    # Save the plot with an incrementally named file
+    filepath = os.path.join(directory, f'matrix_plot_{epoch}.png')
+    plt.savefig(filepath)
+    print(f'Plot saved to {filepath}')
+
+    # Close the plot to free up memory
+    plt.close()    
 
 if __name__=='__main__':
     # PARSE THE ARGS

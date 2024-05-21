@@ -23,44 +23,46 @@ def run_evaluation(net,loader,encoder,check_perf=False, detection_loss=None,segm
         with torch.set_grad_enabled(False):
             outputs = net(inputs)
 
-        if(detection_loss!=None and segmentation_loss!=None):
+        #if(detection_loss!=None and segmentation_loss!=None):
+        if(detection_loss!=None):
             classif_loss,reg_loss = detection_loss(outputs['Detection'], label_map,losses_params)           
-            prediction = outputs['Segmentation'].contiguous().flatten()
-            label = seg_map_label.contiguous().flatten()        
-            loss_seg = segmentation_loss(prediction, label)
-            loss_seg *= inputs.size(0)
+            #prediction = outputs['Segmentation'].contiguous().flatten()
+            #label = seg_map_label.contiguous().flatten()        
+            #loss_seg = segmentation_loss(prediction, label)
+            #loss_seg *= inputs.size(0)
                 
 
             classif_loss *= losses_params['weight'][0]
             reg_loss *= losses_params['weight'][1]
-            loss_seg *=losses_params['weight'][2]
+            #loss_seg *=losses_params['weight'][2]
 
 
-            loss = classif_loss + reg_loss + loss_seg
+            loss = classif_loss + reg_loss #+ loss_seg
 
             # statistics
             running_loss += loss.item() * inputs.size(0)
 
-        if(check_perf):
-            out_obj = outputs['Detection'].detach().cpu().numpy().copy()
-            labels = data[3]
+        # if(check_perf):
+        #     out_obj = outputs['Detection'].detach().cpu().numpy().copy()
+        #     labels = data[3] # data[3]=labels(=box_labels)
 
-            out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
-            label_freespace = seg_map_label.detach().cpu().numpy().copy()
+        #     out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
+        #     label_freespace = seg_map_label.detach().cpu().numpy().copy()
 
-            for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels,label_freespace):
+        #     for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels,label_freespace):
 
-                metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
-                            threshold=0.2,range_min=5,range_max=100) 
+        #         metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
+        #                     threshold=0.2,range_min=5,range_max=100) 
                 
 
 
         kbar.update(i)
         
 
-    mAP,mAR, mIoU = metrics.GetMetrics()
+    #mAP,mAR, mIoU = metrics.GetMetrics()
 
-    return {'loss':running_loss, 'mAP':mAP, 'mAR':mAR, 'mIoU':mIoU}
+    #return {'loss':running_loss, 'mAP':mAP, 'mAR':mAR, 'mIoU':mIoU}
+    return {'loss':running_loss}
 
 
 def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):

@@ -19,25 +19,30 @@ class ra_encoder():
             if(lab[0]==-1):
                 continue
 
-            range_bin = int(np.clip(lab[0]/self.geometry['resolution'][0]/4,0,self.OUTPUT_DIM[1]))
+            #range_bin = int(np.clip(lab[0]/self.geometry['resolution'][0]/4,0,self.OUTPUT_DIM[1]))
+            range_bin = int(np.clip(lab[0]/self.geometry['resolution'][0]/4,0,self.OUTPUT_DIM[1]-1))
             range_mod = lab[0] - range_bin*self.geometry['resolution'][0]*4
 
+
             # ANgle and deg
-            angle_bin = int(np.clip(np.floor(lab[1]/self.geometry['resolution'][1]/4 + self.OUTPUT_DIM[2]/2),0,self.OUTPUT_DIM[2]))
+            #angle_bin = int(np.clip(np.floor(lab[1]/self.geometry['resolution'][1]/4 + self.OUTPUT_DIM[2]/2),0,self.OUTPUT_DIM[2]))
+            angle_bin = int(np.clip(np.floor(lab[1]/self.geometry['resolution'][1]/4 + self.OUTPUT_DIM[2]/2),0,self.OUTPUT_DIM[2]-1))
             angle_mod = lab[1] - (angle_bin- self.OUTPUT_DIM[2]/2)*self.geometry['resolution'][1]*4 
 
+            
             if(self.geometry['size']==1):
+                
                 map[0,range_bin,angle_bin] = 1
                 map[1,range_bin,angle_bin] = (range_mod - self.statistics['reg_mean'][0]) / self.statistics['reg_std'][0]
                 map[2,range_bin,angle_bin] = (angle_mod - self.statistics['reg_mean'][1]) / self.statistics['reg_std'][1]
             else:
 
-                s = int((self.geometry['size']-1)/2)
+                s = int((self.geometry['size']-1)/2) #size=3 (3-1)/2=1
                 r_lin = np.linspace(self.geometry['resolution'][0]*s, -self.geometry['resolution'][0]*s,
                                     self.geometry['size'])*4
                 a_lin = np.linspace(self.geometry['resolution'][1]*s, -self.geometry['resolution'][1]*s,
                                     self.geometry['size'])*4
-                
+                # np.linspace(): generate array evenly spaced number over a specified interval
                 px_a, px_r = np.meshgrid(a_lin, r_lin)
 
                 if(angle_bin>=s and angle_bin<(self.OUTPUT_DIM[2]-s)):
