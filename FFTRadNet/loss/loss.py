@@ -10,13 +10,13 @@ class FocalLoss(nn.Module):
     on difficult foreground detections.
     """
 
-    #def __init__(self, gamma=0, size_average=False):
-    def __init__(self, alpha=0.25, gamma=0, size_average=False):
+    def __init__(self, gamma=0, size_average=False):
+    #def __init__(self, alpha=0.25, gamma=0, size_average=False):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
         self.size_average = size_average
 
-        self.alpha = alpha
+        #self.alpha = alpha
 
     def forward(self, prediction, target):
 
@@ -24,8 +24,18 @@ class FocalLoss(nn.Module):
         pt = torch.where(target == 1.0, prediction, 1-prediction)
 
         # compute focal loss
-        #loss = -1 * (1-pt)**self.gamma * torch.log(pt+1e-6)
-        loss = -self.alpha * (1-pt)**self.gamma * torch.log(pt+1e-6)
+        loss = -1 * (1-pt)**self.gamma * torch.log(pt+1e-6)
+
+
+        # # Ensure alpha is a tensor with the same device as predictions
+        # if not isinstance(self.alpha, torch.Tensor):
+        #     self.alpha = torch.tensor(self.alpha)
+        # if self.alpha.device != prediction.device:
+        #     self.alpha = self.alpha.to(prediction.device)
+
+        # if self.alpha is not None:
+        #     alpha_weights = self.alpha[target.long()]
+        #     loss = loss * alpha_weights
 
         if self.size_average:
             return loss.mean()
@@ -43,6 +53,7 @@ def pixor_loss(batch_predictions, batch_labels,param):
 
     if(param['classification']=='FocalLoss'):
         focal_loss = FocalLoss(gamma=2)
+        #focal_loss = FocalLoss(alpha= [28672/(6*15*15), 1],gamma=10)
         classification_loss = focal_loss(classification_prediction, classification_label)
     else:
         classification_loss = F.binary_cross_entropy(classification_prediction.double(), classification_label.double(),reduction='sum')

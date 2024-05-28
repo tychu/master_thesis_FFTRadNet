@@ -58,7 +58,7 @@ def main(config, resume):
     #                    encoder=enc.encode,
     #                    difficult=True)
     
-    dataset = MATLAB(root_dir = '/imec/other/ruoyumsc/users/chu/matlab-radar-automotive/simulation_data/', statistics= config['dataset']['statistics'], encoder=enc.encode)
+    dataset = MATLAB(root_dir = '/imec/other/ruoyumsc/users/chu/matlab-radar-automotive/simulation_data_DDA/', statistics= config['dataset']['statistics'], encoder=enc.encode)
     print('finish MATLAB data transformations')
 
     train_loader, val_loader, test_loader = CreateDataLoaders(dataset,config['dataloader'],config['seed'])
@@ -129,6 +129,9 @@ def main(config, resume):
             #print('data[1] shape')
             #print(data[1].size)
             inputs = data[0].to('cuda').float()
+            #print('plot input data, input data shape: ', inputs.shape)
+            #rd_plot(inputs[0, 0, :, :]+inputs[0, 16, :, :]*1j)
+
             label_map = data[1].to('cuda').float()
             if(config['model']['SegmentationHead']=='True'):
                 seg_map_label = data[2].to('cuda').double()
@@ -154,7 +157,7 @@ def main(config, resume):
             #loss_seg *=config['losses']['weight'][2]
 
 
-            loss = classif_loss + reg_loss #+ loss_seg
+            loss = classif_loss #+ reg_loss #+ loss_seg
 
             #writer.add_scalar('Loss/train', loss.item(), global_step)
             #writer.add_scalar('Loss/train_clc', classif_loss.item(), global_step)
@@ -230,10 +233,29 @@ def main(config, resume):
         checkpoint['history'] = history
         checkpoint['global_step'] = global_step
 
+        # plot the loss
+        if (epoch % 10 == 0 and epoch != 0):
+            loss_plot(history, epoch)
+
         torch.save(checkpoint,filename)
           
         print('')
 
+# check input        
+def rd_plot(data): 
+    directory = './plot/'
+    data_ = 20* np.log10(np.abs(data.detach().cpu().numpy().copy()))
+    
+
+    plt.figure(figsize=(6, 6))
+    plt.imshow(data_)
+    # Save the plot with an incrementally named file
+    filepath = os.path.join(directory, f'RDplot.png')
+    plt.savefig(filepath)
+    print(f'Plot saved to {filepath}')
+
+    # Close the plot to free up memory
+    plt.close() 
         
 ### plot detection (classification)
 def detection_plot(predictions, labels, epoch):
@@ -253,7 +275,7 @@ def detection_plot(predictions, labels, epoch):
         lab = label[m]
 
         # Create a figure
-        plt.figure(figsize=(6, 12))
+        plt.figure(figsize=(6, 6))
 
         # Plot pre: Red points
         for i in range(pre.shape[0]):
@@ -297,16 +319,22 @@ def matrix_plot(predictions, labels, epoch):
 
     m1 = axs[0].imshow(prediction, cmap='magma', interpolation='none')
     axs[0].set_title('prediction')
-    axs[0].set_xticks([])
-    axs[0].set_yticks([])
-    fig.colorbar(m1)
+    axs[0].set_ylim(0, prediction.shape[0])
+    axs[0].set_xlim(0, prediction.shape[1])
+    axs[0].set_xlabel('azimuth')
+    axs[0].set_ylabel('range')
+
+    fig.colorbar(m1, ax=axs[0])
 
     # Plot the second matrix
-    m2 = axs[1].imshow(label, cmap='magma', interpolation='none')
+    m2 = axs[1].imshow(label, cmap='magma', interpolation='none', vmin=0.0, vmax=1.0)
     axs[1].set_title('label')
-    axs[1].set_xticks([])
-    axs[1].set_yticks([])
-    fig.colorbar(m2)
+    axs[1].set_ylim(0, label.shape[0])
+    axs[1].set_xlim(0, label.shape[1])
+    axs[1].set_xlabel('azimuth')
+    axs[1].set_ylabel('range')
+
+    fig.colorbar(m2, ax=axs[1])
 
     # Save the plot with an incrementally named file
     filepath = os.path.join(directory, f'matrix_plot_{epoch}.png')
@@ -315,6 +343,24 @@ def matrix_plot(predictions, labels, epoch):
 
     # Close the plot to free up memory
     plt.close()    
+
+def loss_plot(history, epoch):
+    directory = './plot/'
+    # Plot the loss curve
+    plt.figure()
+    plt.plot(history['train_loss'], label='Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training Loss Curve')
+    plt.legend()
+    plt.grid(True)
+
+    # Save the plot
+    filepath = os.path.join(directory, f'loss_curve_{epoch}.png')
+    plt.savefig(filepath)
+    plt.close()
+
+    print(f"Loss curve saved to {filepath}")
 
 if __name__=='__main__':
     # PARSE THE ARGS

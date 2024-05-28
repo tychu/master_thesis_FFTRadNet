@@ -95,22 +95,23 @@ class MATLAB(Dataset):
         #radar_name = os.path.join(self.root_dir,'radar_FFT',"fft_{:06d}.npy".format(sample_id))
         mat_file = os.path.join(self.root_dir, 'RD_cube/', self.mat_files[idx])
         mat_input_4d = sio.loadmat(mat_file)['radar_data_cube_4d']
+        mat_input_3d = mat_input_4d[:, :, 0, :]
 
-        #### re-arrange the RD spectrum, one RD specturm per Rx
-        ## combine the Tx
+        # #### re-arrange the RD spectrum, one RD specturm per Rx
+        # ## combine the Tx
         
-        combine_data_list = []
+        # combine_data_list = []
 
-        for cube_idx in range(mat_input_4d.shape[-1]):
-            cube_data = mat_input_4d[:, :, :, cube_idx]
-            #print('cube_data shape', cube_data.shape)
-            # combined the column of each matrix
-            combined_data_cube = np.concatenate([cube_data[:, i, :] for i in range(cube_data.shape[1])], axis=1)
-            #rint('combined data cube', combined_data_cube.shape)
-            # append the combined data to the list
-            combine_data_list.append(combined_data_cube)
+        # for cube_idx in range(mat_input_4d.shape[-1]):
+        #     cube_data = mat_input_4d[:, :, :, cube_idx]
+        #     #print('cube_data shape', cube_data.shape)
+        #     # combined the column of each matrix
+        #     combined_data_cube = np.concatenate([cube_data[:, i, :] for i in range(cube_data.shape[1])], axis=1)
+        #     #rint('combined data cube', combined_data_cube.shape)
+        #     # append the combined data to the list
+        #     combine_data_list.append(combined_data_cube)
 
-        mat_input_3d = np.stack(combine_data_list, axis=-1)
+        # mat_input_3d = np.stack(combine_data_list, axis=-1)
         
 
         radar_FFT = np.concatenate([mat_input_3d.real,mat_input_3d.imag],axis=2)
