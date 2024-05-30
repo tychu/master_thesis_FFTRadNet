@@ -19,6 +19,8 @@ from loss import pixor_loss
 from utils.evaluation import run_evaluation
 import torch.nn as nn
 
+import matplotlib.pyplot as plt #### for plotting - can be delete
+
 def main(config, resume):
 
     # Setup random seed
@@ -135,22 +137,24 @@ def main(config, resume):
 
             classif_loss,reg_loss = pixor_loss(outputs['Detection'], label_map,config['losses'])           
                
-            prediction = outputs['Segmentation'].contiguous().flatten()
-            label = seg_map_label.contiguous().flatten()        
-            loss_seg = freespace_loss(prediction, label)
-            loss_seg *= inputs.size(0)
+            
+            ## since we do not have freespace image
+            # prediction = outputs['Segmentation'].contiguous().flatten()
+            # label = seg_map_label.contiguous().flatten()        
+            # loss_seg = freespace_loss(prediction, label)
+            # loss_seg *= inputs.size(0)
 
             classif_loss *= config['losses']['weight'][0]
             reg_loss *= config['losses']['weight'][1]
-            loss_seg *=config['losses']['weight'][2]
+            #loss_seg *=config['losses']['weight'][2]
 
 
-            loss = classif_loss + reg_loss + loss_seg
+            loss = classif_loss + reg_loss #+ loss_seg
 
             writer.add_scalar('Loss/train', loss.item(), global_step)
             writer.add_scalar('Loss/train_clc', classif_loss.item(), global_step)
             writer.add_scalar('Loss/train_reg', reg_loss.item(), global_step)
-            writer.add_scalar('Loss/train_freespace', loss_seg.item(), global_step)
+            #writer.add_scalar('Loss/train_freespace', loss_seg.item(), global_step)
 
             # backprop
             loss.backward()
@@ -159,10 +163,25 @@ def main(config, resume):
             # statistics
             running_loss += loss.item() * inputs.size(0)
         
-            kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item()),("freeSpace", loss_seg.item())])
+            #kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item()),("freeSpace", loss_seg.item())])
+            kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item())])
 
             
             global_step += 1
+
+
+            ####
+            # for plotting
+            ####
+
+            # Check if this is the last iteration
+            if (epoch > 1 and i == 500):
+            #if (i == len(train_loader) - 1 and epoch != 0):
+                print(f"Last iteration in epoch {epoch}: batch {i}")
+                print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
+                # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
+                detection_plot(outputs['Detection'], label_map, epoch)
+                matrix_plot(outputs['Detection'], label_map, epoch)
 
 
         scheduler.step()
@@ -176,7 +195,7 @@ def main(config, resume):
         ######################
 
         eval = run_evaluation(net,val_loader,enc,check_perf=(epoch>=10),
-                                detection_loss=pixor_loss,segmentation_loss=freespace_loss,
+                                detection_loss=pixor_loss,#segmentation_loss=freespace_loss,
                                 losses_params=config['losses'])
 
         history['val_loss'].append(eval['loss'])
@@ -210,7 +229,100 @@ def main(config, resume):
         print('')
 
         
+####
+# plotting function - can be delete
+####       
+
+### plot detection (classification)
+def detection_plot(predictions, labels, epoch):
+    prediction = predictions[:, 0, :, :]
+    print(prediction[0, 0:10, 0])
+    #target_prediction = (prediction > 0.5).float()
+    label = labels[:, 0, :, :]
+    # Specify the directory to save the plot
+    directory = './plot/'
+    # Iterate through each matrix
+    print("plotting data shape")
+    print(prediction.shape)
+    target_num = 0
+    for m in range(prediction.shape[0]):
+        # Extract the current matrix
+        pre = prediction[m]
+        lab = label[m]
+
+        # Create a figure
+        plt.figure(figsize=(6, 6))
+
+        # Plot pre: Red points
+        for i in range(pre.shape[0]):
+            for j in range(pre.shape[1]):
+                #if pre[i, j] == 1:
+                if pre[i, j] > 0.5:
+                    target_num += 1
+                    #print("predict target!!!")
+                    plt.scatter(j, i, color='red', s=1, label='prediction' if i == 0 and j == 0 else "")
+        print('number of targets in the prediction', target_num)
+        # Plot lab: Blue points
+        for i in range(lab.shape[0]):
+            for j in range(lab.shape[1]):
+                if lab[i, j] == 1:
+                    plt.scatter(j, i, color='blue', s=1, label='ground truth' if i == 0 and j == 0 else "")
+
+        # Set plot limits and labels
+        plt.xlim(0, pre.shape[1])
+        plt.ylim(0, pre.shape[0])
+        #plt.gca().invert_yaxis()  # To match matrix indexing
+        plt.xlabel('angle Index')
+        plt.ylabel('range Index')
+        plt.title('Comparison of prediction and labels')
         
+        # Save the plot with an incrementally named file
+        filepath = os.path.join(directory, f'plot_{epoch}_{m}.png')
+        plt.savefig(filepath)
+        print(f'Plot saved to {filepath}')
+
+        # Close the plot to free up memory
+        plt.close()        
+
+
+def matrix_plot(predictions, labels, epoch):
+    directory = './plot/'
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+    prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
+    #target_prediction = (prediction > 0.5).float()
+    label = labels[0, 0, :, :].detach().cpu().numpy().copy()
+
+    m1 = axs[0].imshow(prediction, cmap='magma', interpolation='none')
+    axs[0].set_title('prediction')
+    axs[0].set_ylim(0, prediction.shape[0])
+    axs[0].set_xlim(0, prediction.shape[1])
+    axs[0].set_xlabel('azimuth')
+    axs[0].set_ylabel('range')
+
+    fig.colorbar(m1, ax=axs[0])
+
+    # Plot the second matrix
+    m2 = axs[1].imshow(label, cmap='magma', interpolation='none', vmin=0.0, vmax=1.0)
+    axs[1].set_title('label')
+    axs[1].set_ylim(0, label.shape[0])
+    axs[1].set_xlim(0, label.shape[1])
+    axs[1].set_xlabel('azimuth')
+    axs[1].set_ylabel('range')
+
+    fig.colorbar(m2, ax=axs[1])
+
+    # Save the plot with an incrementally named file
+    filepath = os.path.join(directory, f'matrix_plot_{epoch}.png')
+    plt.savefig(filepath)
+    print(f'Plot saved to {filepath}')
+
+    # Close the plot to free up memory
+    plt.close() 
+
+
+########### plotting function end - can be delete
+
 
 if __name__=='__main__':
     # PARSE THE ARGS

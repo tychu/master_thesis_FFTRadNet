@@ -6,10 +6,10 @@
         "channels": [32,40,48,56],
         "MIMO_output": 192,
         "DetectionHead": "True",
-        "SegmentationHead": "True"
+        "SegmentationHead": "False"
     },
     "dataset": {
-        "root_dir": "/media/julien/HD_RADAR1/FinalDataset/radar_v1/RADIal/",
+        "root_dir": "/imec/other/ruoyumsc/users/chu/data/",
         "geometry":{
             "ranges": [512,896,1],
             "resolution": [0.201171875,0.2],
@@ -48,7 +48,7 @@
     },
     "num_epochs":100,
     "dataloader": {
-        "mode":"sequence",
+        "mode":"random",
         "split":[0.7,0.15,0.15],
         "train": {
             "batch_size": 4,

@@ -16,6 +16,11 @@ class RADIal(Dataset):
         self.encoder = encoder
         
         self.labels = pd.read_csv(os.path.join(root_dir,'labels.csv')).to_numpy()
+
+        # Filter out missing IDs from sample keys (IDs do not have corresponding npz file)
+        missing_ids_file = os.path.join(self.root_dir,"labels_missing_ids.npy")
+        missing_ids = np.load(missing_ids_file,allow_pickle=True)
+
        
         # Keeps only easy samples
         if(difficult==False):
@@ -30,8 +35,9 @@ class RADIal(Dataset):
         self.unique_ids = np.unique(self.labels[:,0])
         self.label_dict = {}
         for i,ids in enumerate(self.unique_ids):
-            sample_ids = np.where(self.labels[:,0]==ids)[0]
-            self.label_dict[ids]=sample_ids
+            if ids not in missing_ids: # Filter out missing IDs from sample keys (IDs do not have corresponding npz file)
+                sample_ids = np.where(self.labels[:,0]==ids)[0]
+                self.label_dict[ids]=sample_ids
         self.sample_keys = list(self.label_dict.keys())
         
 
@@ -68,16 +74,39 @@ class RADIal(Dataset):
             out_label = self.encoder(box_labels).copy()      
 
         # Read the Radar FFT data
-        radar_name = os.path.join(self.root_dir,'radar_FFT',"fft_{:06d}.npy".format(sample_id))
+        radar_name = os.path.join(self.root_dir,'radar_FFT',"fft_{:06d}.npz".format(sample_id))
         input = np.load(radar_name,allow_pickle=True)
-        radar_FFT = np.concatenate([input.real,input.imag],axis=2)
-        if(self.statistics is not None):
-            for i in range(len(self.statistics['input_mean'])):
-                radar_FFT[...,i] -= self.statistics['input_mean'][i]
-                radar_FFT[...,i] /= self.statistics['input_std'][i]
+
+        ## additional code -start
+        ## since original code read-in npy file, but we got npz file instead
+        # npy: Designed to store a single NumPy array
+        # npz: Designed to store multiple NumPy arrays
+
+        # Iterate over each array in the .npz file 
+        for array_name in input.files:
+            # Extract the array
+            array = input[array_name]
+    
+            # Save the array as a .npy file
+            # np.save(f'{array_name}.npy', array)
+    
+            radar_FFT = np.concatenate([array.real,array.imag],axis=2)
+            if(self.statistics is not None):
+                for i in range(len(self.statistics['input_mean'])):
+                    radar_FFT[...,i] -= self.statistics['input_mean'][i]
+                    radar_FFT[...,i] /= self.statistics['input_std'][i] 
+
+        ## additional code - end 
+
+        # radar_FFT = np.concatenate([input.real,input.imag],axis=2)
+        # if(self.statistics is not None):
+        #     for i in range(len(self.statistics['input_mean'])):
+        #         radar_FFT[...,i] -= self.statistics['input_mean'][i]
+        #         radar_FFT[...,i] /= self.statistics['input_std'][i]
 
         # Read the segmentation map
-        segmap_name = os.path.join(self.root_dir,'radar_Freespace',"freespace_{:06d}.png".format(sample_id))
+        #segmap_name = os.path.join(self.root_dir,'radar_Freespace',"freespace_{:06d}.png".format(sample_id))
+        segmap_name = os.path.join(self.root_dir,'radar_Freespace',"freespace.png")
         segmap = Image.open(segmap_name) # [512,900]
         # 512 pix for the range and 900 pix for the horizontal FOV (180deg)
         # We crop the fov to 89.6deg
