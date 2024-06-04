@@ -4,6 +4,8 @@ sys.path.insert(0, '../')
 from dataset.dataset import RADIal
 from dataset.encoder import ra_encoder
 
+from dataset.matlab_dataset import MATLAB
+
 import numpy as np
 
 
@@ -20,19 +22,26 @@ enc = ra_encoder(geometry = geometry,
                     statistics = statistics,
                     regression_layer = 2)
 
-dataset = RADIal(root_dir = '/media/julien/shared_data/radar_v1/RADIal/',
-                       statistics=None,
-                       encoder=enc.encode,
-                       difficult=True)
+# dataset = RADIal(root_dir = '/media/julien/shared_data/radar_v1/RADIal/',
+#                        statistics=None,
+#                        encoder=enc.encode,
+#                        difficult=True)
+dataset = MATLAB(root_dir = '/imec/other/ruoyumsc/users/chu/matlab-radar-automotive/simulation_data_DDA/', 
+                 statistics= None, 
+                 encoder=enc.encode)
+
 
 reg = []
 m=0
 s=0
 for i in range(len(dataset)):
     print(i,len(dataset))
-    radar_FFT, segmap,out_label,box_labels= dataset.__getitem__(i)
+    radar_FFT, segmap,out_label,box_labels,image= dataset.__getitem__(i)
+
+    print('radar_FFT : ', radar_FFT.shape)
     
-    data = np.reshape(radar_FFT,(512*256,32))
+    #data = np.reshape(radar_FFT,(512*256,32))
+    data = np.reshape(radar_FFT,(512*256,4))
     
     m += data.mean(axis=0)
     s += data.std(axis=0)

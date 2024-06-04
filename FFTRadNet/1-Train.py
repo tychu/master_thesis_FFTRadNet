@@ -178,12 +178,12 @@ def main(config, resume):
             global_step += 1
 
             # Check if this is the last iteration
-            if (i == len(train_loader) - 1 and epoch % 10 == 0 and epoch != 0):
+            if (i == len(train_loader) - 1 and epoch > 2):
             #if (i == len(train_loader) - 1 and epoch != 0):
                 print(f"Last iteration in epoch {epoch}: batch {i}")
                 print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
                 # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
-                detection_plot(outputs['Detection'], label_map, epoch)
+                #detection_plot(outputs['Detection'], label_map, epoch)
                 matrix_plot(outputs['Detection'], label_map, epoch)
 
 
@@ -281,7 +281,7 @@ def detection_plot(predictions, labels, epoch):
         for i in range(pre.shape[0]):
             for j in range(pre.shape[1]):
                 #if pre[i, j] == 1:
-                if pre[i, j] > 0.5:
+                if pre[i, j] > 0.2:
                     target_num += 1
                     #print("predict target!!!")
                     plt.scatter(j, i, color='red', s=1, label='prediction' if i == 0 and j == 0 else "")
