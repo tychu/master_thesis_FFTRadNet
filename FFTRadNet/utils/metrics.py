@@ -43,8 +43,15 @@ def perform_nms(valid_class_predictions, valid_box_predictions, nms_threshold):
         overlap_mask = np.where(ious < nms_threshold, True, False)
         sorted_box_predictions = sorted_box_predictions[overlap_mask]
         sorted_class_predictions = sorted_class_predictions[overlap_mask]
+        # for debugging
+        # if len(sorted_class_predictions) > 0:
+        #     print('sorted_class_predictions: ', len(sorted_class_predictions))
+        # else:
+        #     print('No prediction after IoU threshold')
+
 
     return sorted_class_predictions, sorted_box_predictions
+
 def bbox_iou(box1, boxes):
 
     # currently inspected box
@@ -64,6 +71,8 @@ def bbox_iou(box1, boxes):
 
         # get intersection of both bounding boxes
         inter_area = rect_1.intersection(rect_2).area
+        #print('rect_1: ', rect_1)
+        #print('rect_2: ', rect_2)
 
         # compute IoU of the two bounding boxes
         iou = inter_area / (area_1 + area_2 - inter_area)
@@ -80,12 +89,17 @@ def process_predictions_FFT(batch_predictions, confidence_threshold=0.1, nms_thr
     point_cloud_reg_predictions = RA_to_cartesian_box(batch_predictions)
     point_cloud_reg_predictions = np.asarray(point_cloud_reg_predictions)
     point_cloud_class_predictions = batch_predictions[:,-1]
+    #print(point_cloud_class_predictions[0:10])
 
     # get valid detections
     validity_mask = np.where(point_cloud_class_predictions > confidence_threshold, True, False)
     
     valid_box_predictions = point_cloud_reg_predictions[validity_mask]
     valid_class_predictions = point_cloud_class_predictions[validity_mask]
+    
+    # for debugging
+    # if len(valid_class_predictions) > 0:
+    #     print('valid_class_predictions: ', len(valid_class_predictions))
 
     
     # perform Non-Maximum Suppression
@@ -100,7 +114,7 @@ def process_predictions_FFT(batch_predictions, confidence_threshold=0.1, nms_thr
 
     return final_Object_predictions
 
-def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_threshold=0.5):
+def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_threshold=0.5): 
     perfs = {}
     precision = []
     recall = []
@@ -110,6 +124,7 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
 
     out = []
 
+    #for threshold in np.arange(0.1,0.96,0.1):
     for threshold in np.arange(0.1,0.96,0.1):
 
         iou_threshold.append(threshold)
@@ -125,6 +140,7 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
         nbObjects = 0
 
         for frame_id in range(len(predictions)):
+            # print("new frame id")
 
             pred= predictions[frame_id]
             labels = object_labels[frame_id]
@@ -134,22 +150,45 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
             ground_truth_box_corners = []           
             
             if(len(pred)>0):
+                #print("initial pred len: ", len(pred))
                 Object_predictions = process_predictions_FFT(pred,confidence_threshold=threshold)
 
-            if(len(Object_predictions)>0):
+            # if len(Object_predictions) > 0:
+            #     print('Object_predictions after FFT: ', len(Object_predictions))
+
+            if (len(Object_predictions)>0):
                 max_distance_predictions = (Object_predictions[:,2]+Object_predictions[:,4])/2
                 ids = np.where((max_distance_predictions>=range_min) & (max_distance_predictions <= range_max) )
                 Object_predictions = Object_predictions[ids]
+            
+            if len(Object_predictions) > 0:
+                # print('Object_predictions after max_dist: ', len(Object_predictions))
+                # print("labels len: ", len(labels))
+                # print("labels range value: ", labels[:,0])
+                # print("larger than min: ", labels[:,0]>=range_min)
+                # print("max lim: ", range_max)
+                # print("smaller than max: ", labels[:,0] <= range_max)
+                ids = np.where((labels[:,0]>=range_min) & (labels[:,0] <= range_max))
+                labels = labels[ids]
+                #print("labels len after range: ", len(labels))
+
 
             NbDet += len(Object_predictions)
 
             if(len(labels)>0):
                 ids = np.where((labels[:,0]>=range_min) & (labels[:,0] <= range_max))
                 labels = labels[ids]
+                #print("labels len after range: ", len(labels))
 
             if(len(labels)>0):
                 ground_truth_box_corners = np.asarray(RA_to_cartesian_box(labels))
                 NbGT += ground_truth_box_corners.shape[0]
+            
+            # if len(ground_truth_box_corners)>0:
+            #     print("ground_truth_box_corners pass")
+            #     if len(Object_predictions)>0:
+            #         print('Object_predictions pass')
+            #print('ground_truth_box_corners: ', len(ground_truth_box_corners), 'Object_predictions: ', len(Object_predictions))
 
             # valid predictions and labels exist for the currently inspected point cloud
             if len(ground_truth_box_corners)>0 and len(Object_predictions)>0:
@@ -157,6 +196,7 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
                 used_gt = np.zeros(len(ground_truth_box_corners))
                 for pid, prediction in enumerate(Object_predictions):
                     iou = bbox_iou(prediction[1:], ground_truth_box_corners)
+                    #print('iou: ', iou)
                     ids = np.where(iou>=IOU_threshold)[0]
 
                     
@@ -172,12 +212,15 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
                         FP+=1
                 FN += np.sum(used_gt==0)
 
+                #print('TP: ', TP, 'FP: ', FP, "FN: ", FN)
+
 
             elif(len(ground_truth_box_corners)==0):
                 FP += len(Object_predictions)
             elif(len(Object_predictions)==0):
                 FN += len(ground_truth_box_corners)
-                
+            
+            #print('FP: ', FP, "FN: ", FN)
 
 
         if(TP!=0):
@@ -187,8 +230,8 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
             precision.append( 0) # When there is a detection, how much I m sure
             recall.append(0)
 
-        RangeError.append(range_error/nbObjects)
-        AngleError.append(angle_error/nbObjects)
+        # RangeError.append(range_error/nbObjects)
+        # AngleError.append(angle_error/nbObjects)
 
     perfs['precision']=precision
     perfs['recall']=recall
@@ -200,9 +243,9 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
     print('  mAR:',np.mean(perfs['recall']))
     print('  F1 score:',F1_score)
 
-    print('------- Regression Errors------------')
-    print('  Range Error:',np.mean(RangeError),'m')
-    print('  Angle Error:',np.mean(AngleError),'degree')
+    # print('------- Regression Errors------------')
+    # print('  Range Error:',np.mean(RangeError),'m')
+    # print('  Angle Error:',np.mean(AngleError),'degree')
 
 def GetDetMetrics(predictions,object_labels,threshold=0.2,range_min=5,range_max=70,IOU_threshold=0.2):
 

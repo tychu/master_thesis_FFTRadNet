@@ -9,6 +9,9 @@ from dataset.encoder import ra_encoder
 import cv2
 from utils.util import DisplayHMI
 
+from dataset.matlab_dataset import MATLAB
+from loss import pixor_loss
+
 def main(config, checkpoint_filename,difficult):
 
     # set device
@@ -19,11 +22,14 @@ def main(config, checkpoint_filename,difficult):
                         statistics = config['dataset']['statistics'],
                         regression_layer = 2)
     
-    dataset = RADIal(root_dir = config['dataset']['root_dir'],
-                        statistics= config['dataset']['statistics'],
-                        encoder=enc.encode,
-                        difficult=difficult)
+    # dataset = RADIal(root_dir = config['dataset']['root_dir'],
+    #                     statistics= config['dataset']['statistics'],
+    #                     encoder=enc.encode,
+    #                     difficult=difficult)
 
+    dataset = MATLAB(root_dir = config['dataset']['root_dir'],
+                        statistics= config['dataset']['statistics'],
+                        encoder=enc.encode)
 
     # Create the model
     net = FFTRadNet(blocks = config['model']['backbone_block'],
@@ -37,6 +43,7 @@ def main(config, checkpoint_filename,difficult):
 
     # Load the model
     dict = torch.load(checkpoint_filename)
+    print("after loading checkpoint")
     net.load_state_dict(dict['net_state_dict'])
     net.eval()
 
@@ -47,6 +54,13 @@ def main(config, checkpoint_filename,difficult):
 
         with torch.set_grad_enabled(False):
             outputs = net(inputs)
+
+        #### for checking loading checkpoint
+        label_map = torch.tensor(data[2]).to('cuda').float().unsqueeze(0)
+        #print('label_map shape: ', label_map.shape)
+        classif_loss,reg_loss = pixor_loss(outputs['Detection'], label_map,config['losses'])
+        print("classif_loss: ", classif_loss, "reg_loss: ", reg_loss)
+        ####
 
         hmi = DisplayHMI(data[4], data[0],outputs,enc)
 
