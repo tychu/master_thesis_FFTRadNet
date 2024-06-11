@@ -58,8 +58,9 @@ def main(config, resume):
     #                    encoder=enc.encode,
     #                    difficult=True)
     
-    dataset = MATLAB(root_dir = '/imec/other/ruoyumsc/users/chu/matlab-radar-automotive/simulation_data_DDA/', statistics= config['dataset']['statistics'], encoder=enc.encode)
-    print('finish MATLAB data transformations')
+    dataset = MATLAB(root_dir = config['dataset']['root_dir'],
+                        statistics= config['dataset']['statistics'],
+                        encoder=enc.encode)
 
     train_loader, val_loader, test_loader = CreateDataLoaders(dataset,config['dataloader'],config['seed'])
     
@@ -126,11 +127,9 @@ def main(config, resume):
         running_loss = 0.0
         
         for i, data in enumerate(train_loader):
-            #print('data[1] shape')
-            #print(data[1].size)
+
             inputs = data[0].to('cuda').float()
-            #print('plot input data, input data shape: ', inputs.shape)
-            #rd_plot(inputs[0, 0, :, :]+inputs[0, 16, :, :]*1j)
+
 
             label_map = data[1].to('cuda').float()
             if(config['model']['SegmentationHead']=='True'):
@@ -143,8 +142,7 @@ def main(config, resume):
             with torch.set_grad_enabled(True):
                 outputs = net(inputs)
 
-            #print('label_map -> batch_labels')
-            #print(label_map.shape)
+
             classif_loss,reg_loss = pixor_loss(outputs['Detection'], label_map,config['losses'])           
                
             #prediction = outputs['Segmentation'].contiguous().flatten()
@@ -178,7 +176,7 @@ def main(config, resume):
             global_step += 1
 
             # Check if this is the last iteration
-            if (i == len(train_loader) - 1 and epoch > 2):
+            if (i == len(train_loader) - 1 and epoch > 2 and epoch % 10 == 0):
             #if (i == len(train_loader) - 1 and epoch != 0):
                 print(f"Last iteration in epoch {epoch}: batch {i}")
                 print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
@@ -222,7 +220,7 @@ def main(config, resume):
 
         # Saving all checkpoint as the best checkpoint for multi-task is a balance between both --> up to the user to decide
         #name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_IOU_{:.4f}.pth'.format(epoch, eval['loss'],eval['mAP'],eval['mAR'],eval['mIoU'])
-        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}.pth'.format(epoch, eval['loss'])
+        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}.pth'.format(epoch, loss)
         filename = output_folder / exp_name / name_output_file
 
         checkpoint={}
@@ -310,7 +308,7 @@ def detection_plot(predictions, labels, epoch):
 
 
 def matrix_plot(predictions, labels, epoch):
-    directory = './plot/'
+    directory = './plot_0611_detection/'
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
     prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
@@ -345,7 +343,7 @@ def matrix_plot(predictions, labels, epoch):
     plt.close()    
 
 def loss_plot(history, epoch):
-    directory = './plot/'
+    directory = './plot_0611_detection/'
     # Plot the loss curve
     plt.figure()
     plt.plot(history['train_loss'], label='Training Loss')
