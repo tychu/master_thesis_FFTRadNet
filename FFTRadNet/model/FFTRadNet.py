@@ -5,7 +5,7 @@ from torch.nn.modules.container import Sequential
 from torchvision.transforms.transforms import Sequence
 
 NbTxAntenna = 12 
-NbRxAntenna = 2 #16 
+NbRxAntenna = 16 
 NbVirtualAntenna = NbTxAntenna * NbRxAntenna
 
 def conv3x3(in_planes, out_planes, stride=1, bias=False):

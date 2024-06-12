@@ -12,7 +12,7 @@
         "root_dir": "/imec/other/dl4ms/chu06/public/data/",
         "geometry":{
             "ranges": [512,896,1],
-            "resolution": [0.6,0.2],
+            "resolution": [0.673828125,0.2],
             "size": 3
         },
         "statistics":{

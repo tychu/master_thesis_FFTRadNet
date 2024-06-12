@@ -128,7 +128,11 @@ def main(config, resume):
         
         for i, data in enumerate(train_loader):
 
+
             inputs = data[0].to('cuda').float()
+            # debugging
+            if i == 0:
+                print(inputs.size())
 
 
             label_map = data[1].to('cuda').float()
@@ -155,7 +159,7 @@ def main(config, resume):
             #loss_seg *=config['losses']['weight'][2]
 
 
-            loss = classif_loss #+ reg_loss #+ loss_seg
+            loss = classif_loss + reg_loss #+ loss_seg
 
             #writer.add_scalar('Loss/train', loss.item(), global_step)
             #writer.add_scalar('Loss/train_clc', classif_loss.item(), global_step)
@@ -308,7 +312,7 @@ def detection_plot(predictions, labels, epoch):
 
 
 def matrix_plot(predictions, labels, epoch):
-    directory = './plot_0611_detection/'
+    directory = './plot_0612_16rx_detreg/'
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
     prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
@@ -343,7 +347,7 @@ def matrix_plot(predictions, labels, epoch):
     plt.close()    
 
 def loss_plot(history, epoch):
-    directory = './plot_0611_detection/'
+    directory = './plot_0612_16rx_detreg/'
     # Plot the loss curve
     plt.figure()
     plt.plot(history['train_loss'], label='Training Loss')

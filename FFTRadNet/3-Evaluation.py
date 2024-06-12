@@ -13,7 +13,7 @@ import torch.nn.functional as F
 from utils.evaluation import run_FullEvaluation
 import torch.nn as nn
 
-
+from dataset.matlab_dataset import MATLAB
 
 def main(config, checkpoint,difficult):
 
@@ -31,10 +31,14 @@ def main(config, checkpoint,difficult):
                         statistics = config['dataset']['statistics'],
                         regression_layer = 2)
     
-    dataset = RADIal(root_dir = config['dataset']['root_dir'],
+    # dataset = RADIal(root_dir = config['dataset']['root_dir'],
+    #                     statistics= config['dataset']['statistics'],
+    #                     encoder=enc.encode,
+    #                     difficult=difficult)
+
+    dataset = MATLAB(root_dir = config['dataset']['root_dir'],
                         statistics= config['dataset']['statistics'],
-                        encoder=enc.encode,
-                        difficult=difficult)
+                        encoder=enc.encode)
 
     train_loader, val_loader, test_loader = CreateDataLoaders(dataset,config['dataloader'],config['seed'])
 
@@ -55,7 +59,8 @@ def main(config, checkpoint,difficult):
     net.load_state_dict(dict['net_state_dict'])
     
     print('===========  Running the evaluation ==================:')
-    run_FullEvaluation(net,test_loader,enc)
+    run_FullEvaluation(net,train_loader,enc)
+    #run_FullEvaluation(net,test_loader,enc)
 
    
         
