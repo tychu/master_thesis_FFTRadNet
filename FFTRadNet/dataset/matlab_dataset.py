@@ -22,8 +22,8 @@ class MATLAB(Dataset):
         #print('check labels length')
         #print(len(self.labels))
 
-        self.mat_files = [f for f in os.listdir(os.path.join(self.root_dir, 'RD_cube/')) if f.endswith('.mat')]
-        self.csv_files = [f for f in os.listdir(os.path.join(self.root_dir, 'ground_truth/')) if f.endswith('.csv')]
+        self.mat_files = [f for f in os.listdir(os.path.join(self.root_dir, 'simulation_data_DDA_single_target_100/RD_cube/')) if f.endswith('.mat')]
+        self.csv_files = [f for f in os.listdir(os.path.join(self.root_dir, 'simulation_data_DDA_single_target_100/ground_truth/')) if f.endswith('.csv')]
         
        
         # Keeps only easy samples
@@ -81,7 +81,7 @@ class MATLAB(Dataset):
         ######################
         
         # load lables
-        csv_file = os.path.join(self.root_dir, 'ground_truth/', self.csv_files[idx])
+        csv_file = os.path.join(self.root_dir, 'simulation_data_DDA_single_target_100/ground_truth/', self.csv_files[idx])
         box_labels = pd.read_csv(csv_file).to_numpy()
         #print(box_labels.shape)
 
@@ -93,7 +93,7 @@ class MATLAB(Dataset):
 
         # Read the Radar FFT data
         #radar_name = os.path.join(self.root_dir,'radar_FFT',"fft_{:06d}.npy".format(sample_id))
-        mat_file = os.path.join(self.root_dir, 'RD_cube/', self.mat_files[idx])
+        mat_file = os.path.join(self.root_dir, 'simulation_data_DDA_single_target_100/RD_cube/', self.mat_files[idx])
         mat_input_4d = sio.loadmat(mat_file)['radar_data_cube_4d']
         mat_input_3d = mat_input_4d[:, :, 0, :]
 
@@ -128,7 +128,7 @@ class MATLAB(Dataset):
 
         # Read the segmentation map
         #segmap_name = os.path.join(self.root_dir,'radar_Freespace',"freespace_{:06d}.png".format(sample_id))
-        segmap_name = os.path.join(self.root_dir,'image/',"freespace.png")
+        segmap_name = os.path.join(self.root_dir,'radar_Freespace/',"freespace.png")
         segmap = Image.open(segmap_name) # [512,900]
         # 512 pix for the range and 900 pix for the horizontal FOV (180deg)
         # We crop the fov to 89.6deg
@@ -138,7 +138,7 @@ class MATLAB(Dataset):
 
         # Read the camera image
         #img_name = os.path.join(self.root_dir,'camera',"image_{:06d}.jpg".format(sample_id))
-        img_name = os.path.join(self.root_dir,'image/',"image.jpg")
+        img_name = os.path.join(self.root_dir,'camera/',"image_001010.jpg")
         image = np.asarray(Image.open(img_name))
 
         return radar_FFT, segmap,out_label,box_labels,image

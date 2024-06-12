@@ -10,7 +10,7 @@ import numpy as np
 
 
 geometry = {    "ranges": [512,896,1],
-                "resolution": [0.201171875,0.2],
+                "resolution": [0.6,0.2],
                 "size": 3}
 
 statistics = {  "input_mean":np.zeros(32),
@@ -26,7 +26,7 @@ enc = ra_encoder(geometry = geometry,
 #                        statistics=None,
 #                        encoder=enc.encode,
 #                        difficult=True)
-dataset = MATLAB(root_dir = '/imec/other/ruoyumsc/users/chu/matlab-radar-automotive/simulation_data_DDA/', 
+dataset = MATLAB(root_dir = '/imec/other/dl4ms/chu06/public/data/', 
                  statistics= None, 
                  encoder=enc.encode)
 
@@ -60,3 +60,9 @@ print('===  Regression  ====')
 print('mean',np.mean(reg,axis=1))
 print('std',np.std(reg,axis=1))
 
+# ===  INPUT  ====
+# mean [ 1.40113858e-09 -1.53072174e-08  1.22109185e-08  2.58594150e-10]
+# std [2.72596013e+10 2.75136996e+10 2.75559747e+10 2.73023984e+10]
+# ===  Regression  ====
+# mean [1.13859902 0.32137931]
+# std [2.06553848 0.69512452]

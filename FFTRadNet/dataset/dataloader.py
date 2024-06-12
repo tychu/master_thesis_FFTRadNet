@@ -53,19 +53,19 @@ def CreateDataLoaders(dataset,config=None,seed=0):
         # create data_loaders
         train_loader = DataLoader(train_dataset, 
                                 batch_size=config['train']['batch_size'], 
-                                shuffle=True,
+                                shuffle=False, #True,
                                 num_workers=config['train']['num_workers'],
                                 pin_memory=True,
                                 collate_fn=RADIal_collate)
         val_loader =  DataLoader(val_dataset, 
                                 batch_size=config['val']['batch_size'], 
-                                shuffle=False,
+                                shuffle=False, #False,
                                 num_workers=config['val']['num_workers'],
                                 pin_memory=True,
                                 collate_fn=RADIal_collate)
         test_loader =  DataLoader(test_dataset, 
                                 batch_size=config['test']['batch_size'], 
-                                shuffle=False,
+                                shuffle=False, #False,
                                 num_workers=config['test']['num_workers'],
                                 pin_memory=True,
                                 collate_fn=RADIal_collate)
