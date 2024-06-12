@@ -98,7 +98,7 @@ def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):
         #     predictions['prediction']['freespace'].append(pred_map[0])
         #     predictions['label']['freespace'].append(true_map)
 
-        if i == 50: #len(loader) - 1:
+        if i == 10: #len(loader) - 1:
                     # input, out_label,segmap,labels
             inputs = data[0].to('cuda').float()
 
@@ -125,7 +125,9 @@ def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):
             #GetFullMetrics(predictions['prediction']['objects'],predictions['label']['objects'],range_min=0,range_max=350,IOU_threshold=0.5)#range_min=5,range_max=100
 
             label_map = data[1].to('cuda').float() # debugging
-            matrix_plot(outputs['Detection'], label_map) # debugging                
+            matrix_plot(outputs['Detection'], label_map) # debugging  
+            print("finish plot")    
+            break          
 
         kbar.update(i)
         
@@ -148,7 +150,7 @@ def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):
     # print('  mIoU',mIoU*100,'%')
 
 def matrix_plot(predictions, labels):
-    directory = './plot_0611/'
+    directory = './plot_0612_2rx_detreg/'
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
     prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
