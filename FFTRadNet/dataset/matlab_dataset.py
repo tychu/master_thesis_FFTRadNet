@@ -22,8 +22,8 @@ class MATLAB(Dataset):
         #print('check labels length')
         #print(len(self.labels))
 
-        self.mat_files = [f for f in os.listdir(os.path.join(self.root_dir, 'simulation_data_DDA/RD_cube/')) if f.endswith('.mat')]
-        self.csv_files = [f for f in os.listdir(os.path.join(self.root_dir, 'simulation_data_DDA/ground_truth/')) if f.endswith('.csv')]
+        self.mat_files = [f for f in os.listdir(os.path.join(self.root_dir, 'RD_cube/')) if f.endswith('.mat')]
+        self.csv_files = [f for f in os.listdir(os.path.join(self.root_dir, 'ground_truth/')) if f.endswith('.csv')]
         
        
         # Keeps only easy samples
@@ -81,7 +81,7 @@ class MATLAB(Dataset):
         ######################
         
         # load lables
-        csv_file = os.path.join(self.root_dir, 'simulation_data_DDA/ground_truth/', self.csv_files[idx])
+        csv_file = os.path.join(self.root_dir, 'ground_truth/', self.csv_files[idx])
         box_labels = pd.read_csv(csv_file).to_numpy()
         #print(box_labels.shape)
 
@@ -93,7 +93,7 @@ class MATLAB(Dataset):
 
         # Read the Radar FFT data
         #radar_name = os.path.join(self.root_dir,'radar_FFT',"fft_{:06d}.npy".format(sample_id))
-        mat_file = os.path.join(self.root_dir, 'simulation_data_DDA/RD_cube/', self.mat_files[idx])
+        mat_file = os.path.join(self.root_dir, 'RD_cube/', self.mat_files[idx])
         mat_input_4d = sio.loadmat(mat_file)['radar_data_cube_4d']
         mat_input_3d = mat_input_4d[:, :, 0, :]
 

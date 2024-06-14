@@ -124,7 +124,10 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
         angle_error=0
         nbObjects = 0
 
-        for frame_id in range(len(predictions)):
+
+        print("len(predictions) : ", len(predictions))
+        for frame_id in range(len(predictions)): # len(predictions)=4
+            print("frame_id : ", frame_id)
 
             pred= predictions[frame_id]
             labels = object_labels[frame_id]
@@ -178,7 +181,7 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
             elif(len(Object_predictions)==0):
                 FN += len(ground_truth_box_corners)
                 
-
+            print('TP: ', TP, 'FP: ', FP, "FN: ", FN)
 
         if(TP!=0):
             precision.append( TP / (TP+FP)) # When there is a detection, how much I m sure

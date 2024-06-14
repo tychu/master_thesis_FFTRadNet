@@ -159,7 +159,7 @@ def main(config, resume):
             #loss_seg *=config['losses']['weight'][2]
 
 
-            loss = classif_loss + reg_loss #+ loss_seg
+            loss = classif_loss #+ reg_loss #+ loss_seg
 
             #writer.add_scalar('Loss/train', loss.item(), global_step)
             #writer.add_scalar('Loss/train_clc', classif_loss.item(), global_step)
@@ -179,14 +179,24 @@ def main(config, resume):
             
             global_step += 1
 
-            # Check if this is the last iteration
-            if (i == len(train_loader) - 1 and epoch > 2 and epoch % 10 == 0):
-            #if (i == len(train_loader) - 1 and epoch != 0):
-                print(f"Last iteration in epoch {epoch}: batch {i}")
-                print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
-                # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
-                #detection_plot(outputs['Detection'], label_map, epoch)
-                matrix_plot(outputs['Detection'], label_map, epoch)
+            # # Check if this is the last iteration
+            # if (i == 50 and epoch > 2 and epoch % 10 == 0):
+            # #if (i == len(train_loader) - 1 and epoch != 0):
+            #     print(f"Last iteration in epoch {epoch}: batch {i}")
+            #     print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
+            #     # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
+            #     #detection_plot(outputs['Detection'], label_map, epoch)
+            #     matrix_plot(outputs['Detection'], label_map, epoch)
+
+            # if (i == 50 and epoch % 10 == 0):
+            #     outputs_to_save = outputs['Detection'].detach().cpu().numpy().copy()
+            #     labels_to_save = label_map.detach().cpu().numpy().copy()
+            #     inputs_to_save = inputs.detach().cpu().numpy().copy()
+            #     save_path = os.path.join(config['dataset']['root_dir'], 'output_detection/', f'output_detection_{epoch}')
+            #     np.savez(save_path, output = outputs_to_save, labels = labels_to_save, input = inputs_to_save)
+            #     print(f'Slice saved to {save_path}')
+
+                
 
 
         scheduler.step()
@@ -242,6 +252,28 @@ def main(config, resume):
         torch.save(checkpoint,filename)
           
         print('')
+        if (epoch > 2 and epoch % 10 == 0):
+            for i, data in enumerate(train_loader):
+                if i == 5:
+                    inputs = data[0].to('cuda').float()
+                    label_map = data[1].to('cuda').float()
+                    with torch.set_grad_enabled(False):
+                        outputs = net(inputs)
+
+                    print(f"Last iteration in epoch {epoch}: batch {i}")
+                    print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
+                        # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
+                        #detection_plot(outputs['Detection'], label_map, epoch)
+                    matrix_plot(outputs['Detection'], label_map, epoch)
+
+
+                    outputs_to_save = outputs['Detection'].detach().cpu().numpy().copy()
+                    labels_to_save = label_map.detach().cpu().numpy().copy()
+                    inputs_to_save = inputs.detach().cpu().numpy().copy()
+                    save_path = os.path.join(config['dataset']['root_dir'], 'output_detection/', f'output_detection_{epoch}')
+                    np.savez(save_path, output = outputs_to_save, labels = labels_to_save, input = inputs_to_save)
+                    print(f'Slice saved to {save_path}')
+
 
 # check input        
 def rd_plot(data): 
@@ -312,7 +344,7 @@ def detection_plot(predictions, labels, epoch):
 
 
 def matrix_plot(predictions, labels, epoch):
-    directory = './plot_0612_16rx_detreg/'
+    directory = './plot_0612_16rx_det/'
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
     prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
@@ -347,7 +379,7 @@ def matrix_plot(predictions, labels, epoch):
     plt.close()    
 
 def loss_plot(history, epoch):
-    directory = './plot_0612_16rx_detreg/'
+    directory = './plot_0612_16rx_det/'
     # Plot the loss curve
     plt.figure()
     plt.plot(history['train_loss'], label='Training Loss')
