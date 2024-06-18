@@ -9,7 +9,7 @@
         "SegmentationHead": "False"
     },
     "dataset": {
-        "root_dir": "/imec/other/dl4ms/chu06/public/data/simulation_data_DDA_3targets/",
+        "root_dir": "/imec/other/dl4ms/chu06/public/data/simulation_data_DDA/",
         "geometry":{
             "ranges": [512,896,1],
             "resolution": [0.673828125,0.2],

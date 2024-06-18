@@ -160,6 +160,8 @@ class ra_encoder():
         coordinates = []
 
         for range_bin,angle_bin in zip(range_bins,angle_bins):
+            #print('range_bin : ', range_bin)
+            #print('angle_bin : ', angle_bin)
             R = range_bin*4*self.geometry['resolution'][0] + map[1,range_bin,angle_bin] * self.statistics['reg_std'][0] + self.statistics['reg_mean'][0]
             A = (angle_bin-self.OUTPUT_DIM[2]/2)*4*self.geometry['resolution'][1] + map[2,range_bin,angle_bin] * self.statistics['reg_std'][1] + self.statistics['reg_mean'][1]
             C = map[0,range_bin,angle_bin]

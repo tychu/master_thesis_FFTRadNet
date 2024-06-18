@@ -159,7 +159,7 @@ def main(config, resume):
             #loss_seg *=config['losses']['weight'][2]
 
 
-            loss = classif_loss #+ reg_loss #+ loss_seg
+            loss = classif_loss + reg_loss #+ loss_seg
 
             #writer.add_scalar('Loss/train', loss.item(), global_step)
             #writer.add_scalar('Loss/train_clc', classif_loss.item(), global_step)
@@ -217,12 +217,12 @@ def main(config, resume):
                                 losses_params=config['losses'])
 
         history['val_loss'].append(eval['loss'])
-        #history['mAP'].append(eval['mAP'])
-        #history['mAR'].append(eval['mAR'])
+        history['mAP'].append(eval['mAP'])
+        history['mAR'].append(eval['mAR'])
         #history['mIoU'].append(eval['mIoU'])
 
-        #kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR']),("mIoU", eval['mIoU'])])
-        kbar.add(1, values=[("val_loss", eval['loss'])])
+        kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR']),("mIoU", eval['mIoU'])])
+        #kbar.add(1, values=[("val_loss", eval['loss'])])
 
             
 
@@ -234,7 +234,7 @@ def main(config, resume):
 
         # Saving all checkpoint as the best checkpoint for multi-task is a balance between both --> up to the user to decide
         #name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_IOU_{:.4f}.pth'.format(epoch, eval['loss'],eval['mAP'],eval['mAR'],eval['mIoU'])
-        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}.pth'.format(epoch, loss)
+        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}.pth'.format(epoch, loss, eval['mAP'], eval['mAR'])
         filename = output_folder / exp_name / name_output_file
 
         checkpoint={}
@@ -252,27 +252,21 @@ def main(config, resume):
         torch.save(checkpoint,filename)
           
         print('')
-        if (epoch > 2 and epoch % 10 == 0):
-            for i, data in enumerate(train_loader):
-                if i == 5:
-                    inputs = data[0].to('cuda').float()
-                    label_map = data[1].to('cuda').float()
-                    with torch.set_grad_enabled(False):
-                        outputs = net(inputs)
+        # if (epoch > 2 and epoch % 10 == 0):
+        #     for i, data in enumerate(train_loader):
+        #         if i == 5:
+        #             inputs = data[0].to('cuda').float()
+        #             label_map = data[1].to('cuda').float()
+        #             with torch.set_grad_enabled(False):
+        #                 outputs = net(inputs)
 
-                    print(f"Last iteration in epoch {epoch}: batch {i}")
-                    print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
-                        # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
-                        #detection_plot(outputs['Detection'], label_map, epoch)
-                    matrix_plot(outputs['Detection'], label_map, epoch)
+        #             print(f"Last iteration in epoch {epoch}: batch {i}")
+        #             print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
+        #                 # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
+        #                 #detection_plot(outputs['Detection'], label_map, epoch)
+        #             matrix_plot(outputs['Detection'], label_map, epoch)
 
 
-                    outputs_to_save = outputs['Detection'].detach().cpu().numpy().copy()
-                    labels_to_save = label_map.detach().cpu().numpy().copy()
-                    inputs_to_save = inputs.detach().cpu().numpy().copy()
-                    save_path = os.path.join(config['dataset']['root_dir'], 'output_detection/', f'output_detection_{epoch}')
-                    np.savez(save_path, output = outputs_to_save, labels = labels_to_save, input = inputs_to_save)
-                    print(f'Slice saved to {save_path}')
 
 
 # check input        
@@ -344,7 +338,7 @@ def detection_plot(predictions, labels, epoch):
 
 
 def matrix_plot(predictions, labels, epoch):
-    directory = './plot_0612_16rx_det/'
+    directory = './plot_0612_16rx_detreg/'
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
     prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
@@ -379,7 +373,7 @@ def matrix_plot(predictions, labels, epoch):
     plt.close()    
 
 def loss_plot(history, epoch):
-    directory = './plot_0612_16rx_det/'
+    directory = './plot_0612_16rx_detreg/'
     # Plot the loss curve
     plt.figure()
     plt.plot(history['train_loss'], label='Training Loss')

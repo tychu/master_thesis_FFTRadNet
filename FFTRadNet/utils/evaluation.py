@@ -45,27 +45,27 @@ def run_evaluation(net,loader,encoder,check_perf=False, detection_loss=None,segm
             # statistics
             running_loss += loss.item() * inputs.size(0)
 
-        # if(check_perf):
-        #     out_obj = outputs['Detection'].detach().cpu().numpy().copy()
-        #     labels = data[3] # data[3]=labels(=box_labels)
+        if(check_perf):
+            out_obj = outputs['Detection'].detach().cpu().numpy().copy()
+            labels = data[3] # data[3]=labels(=box_labels)
 
-        #     out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
-        #     label_freespace = seg_map_label.detach().cpu().numpy().copy()
+            out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
+            label_freespace = seg_map_label.detach().cpu().numpy().copy()
 
-        #     for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels,label_freespace):
+            for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels,label_freespace):
 
-        #         metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
-        #                     threshold=0.2,range_min=5,range_max=100) 
+                metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
+                            threshold=0.2,range_min=5,range_max=100) 
                 
 
 
         kbar.update(i)
         
 
-    #mAP,mAR, mIoU = metrics.GetMetrics()
+    mAP,mAR, mIoU = metrics.GetMetrics()
 
-    #return {'loss':running_loss, 'mAP':mAP, 'mAR':mAR, 'mIoU':mIoU}
-    return {'loss':running_loss}
+    return {'loss':running_loss, 'mAP':mAP, 'mAR':mAR, 'mIoU':mIoU}
+    #return {'loss':running_loss}
 
 
 def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):
@@ -77,87 +77,36 @@ def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):
     print('Generating Predictions...')
     predictions = {'prediction':{'objects':[],'freespace':[]},'label':{'objects':[],'freespace':[]}}
     for i, data in enumerate(loader):
-
-        # # input, out_label,segmap,labels
-        # inputs = data[0].to('cuda').float()
-
-        # with torch.set_grad_enabled(False):
-        #     outputs = net(inputs)
-
-        # out_obj = outputs['Detection'].detach().cpu().numpy().copy()
-        # out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
         
-        # labels_object = data[3]
-        # label_freespace = data[2].numpy().copy()
+        # input, out_label,segmap,labels
+        inputs = data[0].to('cuda').float()
+
+        with torch.set_grad_enabled(False):
+            outputs = net(inputs)
+
+        out_obj = outputs['Detection'].detach().cpu().numpy().copy()
+        out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
+        
+        labels_object = data[3]
+        label_freespace = data[2].numpy().copy()
             
-        # for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels_object,label_freespace):
+        for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels_object,label_freespace):
             
-        #     predictions['prediction']['objects'].append( np.asarray(encoder.decode(pred_obj,0.05)))
-        #     predictions['label']['objects'].append(true_obj)
+            predictions['prediction']['objects'].append( np.asarray(encoder.decode(pred_obj,0.05)))
+            predictions['label']['objects'].append(true_obj)
 
-        #     predictions['prediction']['freespace'].append(pred_map[0])
-        #     predictions['label']['freespace'].append(true_map)
-
-        if (i % 7 == 0): #len(loader) - 1:
-                    # input, out_label,segmap,labels
-            inputs = data[0].to('cuda').float()
-
-            with torch.set_grad_enabled(False):
-                outputs = net(inputs)
-
-            label_map = data[1].to('cuda').float() # debugging
-            matrix_plot(outputs['Detection'], label_map, epoch=260, batch = i) # debugging  
-            detection_plot(outputs['Detection'], label_map, epoch=260, batch = i)   
-
-            out_obj = outputs['Detection'].detach().cpu().numpy().copy()
-            out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
-            
-            labels_object = data[3]
-            label_freespace = data[2].numpy().copy()
-                
-            for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels_object,label_freespace):
-                
-                print("pred_obj : ", pred_obj.shape)
-                print("np.asarray(encoder.decode(pred_obj,0.05)) : ", np.asarray(encoder.decode(pred_obj,0.05)).shape)
-                predictions['prediction']['objects'].append( np.asarray(encoder.decode(pred_obj,0.05)))
-                predictions['label']['objects'].append(true_obj)
-
-                predictions['prediction']['freespace'].append(pred_map[0])
-                predictions['label']['freespace'].append(true_map)
-            
-            print("predictions['prediction']['objects'] : ", len(predictions['prediction']['objects']))
-            #GetFullMetrics(predictions['prediction']['objects'],predictions['label']['objects'],range_min=5,range_max=100,IOU_threshold=0.5)
-            # # Load the corresponding file
-            # radar_name1 = os.path.join('/imec/other/dl4ms/chu06/public/data/simulation_data_DDA/', 'output_detection/', "output_detection_90.npz")
-            # input_data1 = np.load(radar_name1, allow_pickle=True) 
-            # keys = input_data1.files
-            # for key in keys:
-            #     array_from_file = input_data1[key]
-            #     if key == "output":
-            #         compare_data = outputs['Detection'].detach().cpu().numpy().copy()
-            #         print("using output detection")
-            #     elif key == "input":
-            #         compare_data = inputs.detach().cpu().numpy().copy()
-            #         print("using input")
-            #     elif key == "labels":
-            #         compare_data = label_map.detach().cpu().numpy().copy()
-            #         print("using label map")
-            #     else: print("no matching key")
-
-            #     if np.array_equal(array_from_file, compare_data):
-            #         print(f"Array for key '{key}' is equal to the reference array.")
-            #     else:
-            #         print(f"Array for key '{key}' is different from the reference array.")
-
-            break
-
+            predictions['prediction']['freespace'].append(pred_map[0])
+            predictions['label']['freespace'].append(true_map)
 
 
 
         kbar.update(i)
         
     # GetFullMetrics(predictions['prediction']['objects'],predictions['label']['objects'],range_min=5,range_max=100,IOU_threshold=0.5)
+    GetFullMetrics(predictions['prediction']['objects'],predictions['label']['objects'],range_min=0,range_max=345,IOU_threshold=0.5)
 
+
+    # doesn't need freespace evaluation
     # mIoU = []
     # for i in range(len(predictions['prediction']['freespace'])):
     #     # 0 to 124 means 0 to 50m
@@ -174,7 +123,57 @@ def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):
     # print('------- Freespace Scores ------------')
     # print('  mIoU',mIoU*100,'%')
 
-def matrix_plot(predictions, labels, epoch, batch):
+def run_iEvaluation(net,loader,encoder,datamode,iou_threshold=0.5):
+
+    #net.eval()
+    model_mode = net.training
+
+
+    
+    kbar = pkbar.Kbar(target=len(loader), width=20, always_stateful=False)
+
+    print('Generating Predictions...')
+    predictions = {'prediction':{'objects':[],'freespace':[]},'label':{'objects':[],'freespace':[]}}
+    for i, data in enumerate(loader):
+
+        if (i % 5 == 0): #len(loader) - 1:
+                    # input, out_label,segmap,labels
+            inputs = data[0].to('cuda').float()
+
+
+            with torch.set_grad_enabled(False):
+                outputs = net(inputs)
+
+            label_map = data[1].to('cuda').float() # debugging
+
+            out_obj = outputs['Detection'].detach().cpu().numpy().copy()
+            out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
+            
+            matrix_plot(outputs['Detection'], label_map, model_mode, datamode, epoch=150, batch = i) # debugging  
+            detection_plot(outputs['Detection'], label_map, model_mode, datamode, epoch=150, batch = i)   
+
+            labels_object = data[3]
+            label_freespace = data[2].numpy().copy()
+            print("out_obj : ", out_obj.shape)
+                
+            for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels_object,label_freespace):
+                
+                print("pred_obj : ", pred_obj.shape)
+                print("true_obj : ", true_obj.shape)
+                print("np.asarray(encoder.decode(pred_obj,0.05)) : ", np.asarray(encoder.decode(pred_obj,0.05)).shape)
+                predictions['prediction']['objects'].append( np.asarray(encoder.decode(pred_obj,0.05)))
+                predictions['label']['objects'].append(true_obj)
+
+                predictions['prediction']['freespace'].append(pred_map[0])
+                predictions['label']['freespace'].append(true_map)
+            
+            print("predictions['prediction']['objects'] : ", len(predictions['prediction']['objects']))
+            print("predictions['label']['objects'] : ", len(predictions['label']['objects']))
+            #GetFullMetrics(predictions['prediction']['objects'],predictions['label']['objects'],range_min=0,range_max=345,IOU_threshold=0.5)
+
+        kbar.update(i)
+
+def matrix_plot(predictions, labels, model_mode, datamode, epoch, batch):
     directory = './plot_0612_16rx_detreg/'
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
@@ -202,7 +201,10 @@ def matrix_plot(predictions, labels, epoch, batch):
     fig.colorbar(m2, ax=axs[1])
 
     # Save the plot with an incrementally named file
-    filepath = os.path.join(directory, f'matrix_plot_epoch{epoch}_batch{batch}.png')
+    if model_mode:
+        filepath = os.path.join(directory, f'matrix_plot_epoch{epoch}_batch{batch}_{datamode}_trainnet.png')
+    else:
+        filepath = os.path.join(directory, f'matrix_plot_epoch{epoch}_batch{batch}_{datamode}.png')
     plt.savefig(filepath)
     print(f'Plot saved to {filepath}')
 
@@ -210,11 +212,11 @@ def matrix_plot(predictions, labels, epoch, batch):
     plt.close()     
 
 ### plot detection (classification)
-def detection_plot(predictions, labels, epoch, batch):
-    prediction = predictions[0, 0, :, :]
+def detection_plot(predictions, labels, model_mode, datamode, epoch, batch):
+    prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
     
     #target_prediction = (prediction > 0.5).float()
-    label = labels[0, 0, :, :]
+    label = labels[0, 0, :, :].detach().cpu().numpy().copy()
     # Specify the directory to save the plot
     directory = './plot_0612_16rx_detreg/'
     # Iterate through each matrix
@@ -229,9 +231,9 @@ def detection_plot(predictions, labels, epoch, batch):
     for i in range(prediction.shape[0]):
         for j in range(prediction.shape[1]):
             #if pre[i, j] == 1:
-            if prediction[i, j] > 0.2:
+            if prediction[i, j] >= 0.05:
                 target_num += 1
-                #print("predict target!!!")
+                print("predict target!!! probability: ", prediction[i, j] )
                 plt.scatter(j, i, color='red', s=1, label='prediction' if i == 0 and j == 0 else "")
     print('number of targets in the prediction', target_num)
     # Plot lab: Blue points
@@ -249,7 +251,10 @@ def detection_plot(predictions, labels, epoch, batch):
     plt.title('Comparison of prediction and labels')
     
     # Save the plot with an incrementally named file
-    filepath = os.path.join(directory, f'plot_epoch{epoch}_batch{batch}.png')
+    if model_mode:
+        filepath = os.path.join(directory, f'plot_epoch{epoch}_batch{batch}_{datamode}_trainnet.png')
+    else:
+        filepath = os.path.join(directory, f'plot_epoch{epoch}_batch{batch}_{datamode}.png')
     plt.savefig(filepath)
     print(f'Plot saved to {filepath}')
 

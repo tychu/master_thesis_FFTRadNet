@@ -2,6 +2,8 @@ import os
 import numpy as np
 import pandas as pd
 import random
+import torch
+import matplotlib.pyplot as plt
 
 class DataProcessor:
     def __init__(self, root_dir):
@@ -93,25 +95,68 @@ class DataProcessor:
 
 
 
+# Define the path to the directory containing checkpoint files
+directory = "/imec/other/dl4ms/chu06/RADIal/FFTRadNet_matlab_Jun-17-2024_16rx_detection_regression_3targets"
+
+def load_checkpoint(filepath):
+    """Load a checkpoint file."""
+    checkpoint = torch.load(filepath)
+    return checkpoint
+
+def extract_validation_loss(checkpoint):
+    """Extract validation loss from the checkpoint."""
+    if 'history' in checkpoint and 'val_loss' in checkpoint['history']:
+        return checkpoint['history']['val_loss']
+    else:
+        return None
+
+# List to store validation losses
+validation_losses = []
+
+# Iterate through all files in the directory
+for filename in sorted(os.listdir(directory)):
+    if filename.endswith(".pth"):
+        filepath = os.path.join(directory, filename)
+        checkpoint = load_checkpoint(filepath)
+        val_loss = extract_validation_loss(checkpoint)
+        if val_loss is not None:
+            validation_losses.append(val_loss[-1])  # Append the last validation loss of the epoch
+
+# Plot the validation loss over epochs
+plt.figure(figsize=(10, 6))
+plt.plot(range(1, len(validation_losses) + 1), validation_losses, marker='o', linestyle='-', color='b')
+plt.title("Validation Loss Over Epochs")
+plt.xlabel("Epoch")
+plt.ylabel("Validation Loss")
+plt.grid(True)
+
+filepath = os.path.join('./plot_0612_16rx_detreg/', f'val_loss_plot.png')
+plt.savefig(filepath)
+print(f'Plot saved to {filepath}')
+
+# Close the plot to free up memory
+plt.close()    
+
+
 # Example usage
 root_dir = '/imec/other/ruoyumsc/users/chu/data/'  # Your root directory
-processor = DataProcessor(root_dir)
+# processor = DataProcessor(root_dir)
 
-# # To get a sample
-# index = 0  # Example index
-# sample_data = processor.get_sample(index)
-# print(sample_data)
+# # # To get a sample
+# # index = 0  # Example index
+# # sample_data = processor.get_sample(index)
+# # print(sample_data)
 
-# Example usage
+# # Example usage
 
 
-# randomly select 50 files and check
-file_indices = list(range(1, processor.get_length()))  
-num_samples = 50
-random_pairs = random.sample([(i, j) for i in file_indices for j in file_indices if i != j], num_samples)
+# # randomly select 50 files and check
+# file_indices = list(range(1, processor.get_length()))  
+# num_samples = 50
+# random_pairs = random.sample([(i, j) for i in file_indices for j in file_indices if i != j], num_samples)
 
-results = []
-for idx1, idx2 in random_pairs:
-    are_equal, message = processor.compare_npz_files(idx1, idx2)
-    results.append((idx1, idx2, are_equal, message))
-    print(f'Comparing file{idx1:06d}.npz with file{idx2:06d}.npz: {message}')
+# results = []
+# for idx1, idx2 in random_pairs:
+#     are_equal, message = processor.compare_npz_files(idx1, idx2)
+#     results.append((idx1, idx2, are_equal, message))
+#     print(f'Comparing file{idx1:06d}.npz with file{idx2:06d}.npz: {message}')

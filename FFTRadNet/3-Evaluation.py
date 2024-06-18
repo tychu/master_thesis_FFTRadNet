@@ -11,6 +11,7 @@ from dataset.dataloader import CreateDataLoaders
 import pkbar
 import torch.nn.functional as F
 from utils.evaluation import run_FullEvaluation
+from utils.evaluation import run_iEvaluation
 import torch.nn as nn
 
 from dataset.matlab_dataset import MATLAB
@@ -59,8 +60,10 @@ def main(config, checkpoint,difficult):
     net.load_state_dict(dict['net_state_dict'])
     
     print('===========  Running the evaluation ==================:')
+    run_iEvaluation(net,train_loader,enc, datamode='train') # only run some plot to check the output
     run_FullEvaluation(net,train_loader,enc)
     #run_FullEvaluation(net,test_loader,enc)
+    
 
    
         

@@ -111,6 +111,7 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
     out = []
 
     for threshold in np.arange(0.1,0.96,0.1):
+    
 
         iou_threshold.append(threshold)
 
@@ -125,9 +126,9 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
         nbObjects = 0
 
 
-        print("len(predictions) : ", len(predictions))
+
         for frame_id in range(len(predictions)): # len(predictions)=4
-            print("frame_id : ", frame_id)
+            #print("frame_id : ", frame_id)
 
             pred= predictions[frame_id]
             labels = object_labels[frame_id]
@@ -181,7 +182,7 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
             elif(len(Object_predictions)==0):
                 FN += len(ground_truth_box_corners)
                 
-            print('TP: ', TP, 'FP: ', FP, "FN: ", FN)
+            #print('TP: ', TP, 'FP: ', FP, "FN: ", FN)
 
         if(TP!=0):
             precision.append( TP / (TP+FP)) # When there is a detection, how much I m sure
@@ -190,8 +191,8 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
             precision.append( 0) # When there is a detection, how much I m sure
             recall.append(0)
 
-        RangeError.append(range_error/nbObjects)
-        AngleError.append(angle_error/nbObjects)
+        #RangeError.append(range_error/nbObjects)
+        #AngleError.append(angle_error/nbObjects)
 
     perfs['precision']=precision
     perfs['recall']=recall
@@ -203,9 +204,11 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
     print('  mAR:',np.mean(perfs['recall']))
     print('  F1 score:',F1_score)
 
-    print('------- Regression Errors------------')
-    print('  Range Error:',np.mean(RangeError),'m')
-    print('  Angle Error:',np.mean(AngleError),'degree')
+    #print("number of ground truth : ", NbGT)
+
+    # print('------- Regression Errors------------')
+    # print('  Range Error:',np.mean(RangeError),'m')
+    # print('  Angle Error:',np.mean(AngleError),'degree')
 
 def GetDetMetrics(predictions,object_labels,threshold=0.2,range_min=5,range_max=70,IOU_threshold=0.2):
 
