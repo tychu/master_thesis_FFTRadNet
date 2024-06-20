@@ -373,7 +373,7 @@ def main(config, resume):
 #     plt.close()    
 
 def loss_plot(history, epoch):
-    directory = './plot_0619_16rx_detreg_suffletrain/'
+    directory = './plot_0620_16rx_detreg_suffletrain_momentum0.5/'
     # Plot the loss curve
     plt.figure()
     plt.plot(history['train_loss'], label='Training Loss')
