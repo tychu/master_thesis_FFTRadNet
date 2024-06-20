@@ -5,11 +5,27 @@ import pkbar
 
 import matplotlib.pyplot as plt
 import os
+import torch.nn as nn
 
 def run_evaluation(net,loader,encoder,check_perf=False, detection_loss=None,segmentation_loss=None,losses_params=None):
 
     metrics = Metrics()
     metrics.reset()
+
+# Before setting model to eval(), run a few forward passes
+    num_batches_to_run = 5
+    net.train()  # Ensure the model is in training mode
+    for i, data in enumerate(loader):
+        inputs = data[0].to('cuda').float()
+        if i >= num_batches_to_run:
+            break
+        with torch.no_grad():  # No need to compute gradients
+            outputs = net(inputs)
+    # Check the stabilized running_mean and running_var
+    for name, module in net.named_modules():
+        if isinstance(module, nn.BatchNorm2d):
+            print(f"{name}.running_mean: {module.running_mean}")
+            print(f"{name}.running_var: {module.running_var}")
 
     net.eval()
     running_loss = 0.0
