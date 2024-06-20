@@ -26,27 +26,27 @@ class Detection_Header(nn.Module):
 
         if(self.input_angle_size==224):
             self.conv1 = conv3x3(256, 144, bias=bias)
-            self.bn1 = nn.BatchNorm2d(144)
+            self.bn1 = nn.BatchNorm2d(144, momentum=0.5)
             self.conv2 = conv3x3(144, 96, bias=bias)
-            self.bn2 = nn.BatchNorm2d(96)
+            self.bn2 = nn.BatchNorm2d(96, momentum=0.5)
         elif(self.input_angle_size==448):
             self.conv1 = conv3x3(256, 144, bias=bias,stride=(1,2))
-            self.bn1 = nn.BatchNorm2d(144)
+            self.bn1 = nn.BatchNorm2d(144, momentum=0.5)
             self.conv2 = conv3x3(144, 96, bias=bias)
-            self.bn2 = nn.BatchNorm2d(96)
+            self.bn2 = nn.BatchNorm2d(96, momentum=0.5)
         elif(self.input_angle_size==896):
             self.conv1 = conv3x3(256, 144, bias=bias,stride=(1,2))
-            self.bn1 = nn.BatchNorm2d(144)
+            self.bn1 = nn.BatchNorm2d(144, momentum=0.5)
             self.conv2 = conv3x3(144, 96, bias=bias,stride=(1,2))
-            self.bn2 = nn.BatchNorm2d(96)
+            self.bn2 = nn.BatchNorm2d(96, momentum=0.5)
         else:
             raise NameError('Wrong channel angle paraemter !')
             return
 
         self.conv3 = conv3x3(96, 96, bias=bias)
-        self.bn3 = nn.BatchNorm2d(96)
+        self.bn3 = nn.BatchNorm2d(96, momentum=0.5)
         self.conv4 = conv3x3(96, 96, bias=bias)
-        self.bn4 = nn.BatchNorm2d(96)
+        self.bn4 = nn.BatchNorm2d(96, momentum=0.5)
 
         self.clshead = conv3x3(96, 1, bias=True)
         self.reghead = conv3x3(96, reg_layer, bias=True)
@@ -77,11 +77,11 @@ class Bottleneck(nn.Module):
     def __init__(self, in_planes, planes, stride=1, downsample=None,expansion=4):
         super(Bottleneck, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
+        self.bn1 = nn.BatchNorm2d(planes, momentum=0.5)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
+        self.bn2 = nn.BatchNorm2d(planes, momentum=0.5)
         self.conv3 = nn.Conv2d(planes, expansion*planes, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(expansion*planes)
+        self.bn3 = nn.BatchNorm2d(expansion*planes, momentum=0.5)
         self.downsample = downsample
         self.relu = nn.ReLU(inplace=True)
 
@@ -112,7 +112,7 @@ class MIMO_PreEncoder(nn.Module):
         self.conv = nn.Conv2d(in_layer, out_layer, kernel_size, 
                               stride=(1, 1), padding=0,dilation=dilation, bias= (not use_bn) )
      
-        self.bn = nn.BatchNorm2d(out_layer)
+        self.bn = nn.BatchNorm2d(out_layer, momentum=0.5)
         self.padding = int(NbVirtualAntenna/2)
 
     def forward(self,x):
@@ -142,7 +142,7 @@ class FPN_BackBone(nn.Module):
         self.in_planes = mimo_layer
 
         self.conv = conv3x3(self.in_planes, self.in_planes)
-        self.bn = nn.BatchNorm2d(self.in_planes)
+        self.bn = nn.BatchNorm2d(self.in_planes, momentum=0.5)
         self.relu = nn.ReLU(inplace=True)
 
         # Residuall blocks
@@ -179,7 +179,7 @@ class FPN_BackBone(nn.Module):
             downsample = nn.Sequential(
                 nn.Conv2d(self.in_planes, planes * self.block_expansion,
                           kernel_size=1, stride=2, bias=False),
-                nn.BatchNorm2d(planes * self.block_expansion)
+                nn.BatchNorm2d(planes * self.block_expansion, momentum=0.5)
             )
         else:
             downsample = nn.Conv2d(self.in_planes, planes * self.block_expansion,
@@ -198,10 +198,10 @@ class BasicBlock(nn.Module):
     def __init__(self, in_planes, planes, stride=1, downsample=None):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(in_planes, planes, stride, bias=True)
-        self.bn1 = nn.BatchNorm2d(planes)
+        self.bn1 = nn.BatchNorm2d(planes, momentum=0.5)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes, bias=True)
-        self.bn2 = nn.BatchNorm2d(planes)
+        self.bn2 = nn.BatchNorm2d(planes, momentum=0.5)
         self.downsample = downsample
         self.stride = stride
 
