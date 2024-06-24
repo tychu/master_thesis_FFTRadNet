@@ -54,11 +54,11 @@
         "mode":"random",
         "split":[0.7,0.15,0.15],
         "train": {
-            "batch_size": 32,
+            "batch_size": 8,
             "num_workers": 4
     	},
         "val": {
-            "batch_size": 32,
+            "batch_size": 8,
             "num_workers": 4
         },
         "test": {
