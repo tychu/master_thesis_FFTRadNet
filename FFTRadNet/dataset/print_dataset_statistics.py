@@ -10,7 +10,7 @@ import numpy as np
 
 
 geometry = {    "ranges": [512,896,1],
-                "resolution": [0.6,0.2],
+                "resolution": [0.673828125,0.2],
                 "size": 3}
 
 statistics = {  "input_mean":np.zeros(32),
@@ -26,7 +26,7 @@ enc = ra_encoder(geometry = geometry,
 #                        statistics=None,
 #                        encoder=enc.encode,
 #                        difficult=True)
-dataset = MATLAB(root_dir = '/imec/other/dl4ms/chu06/public/data/', 
+dataset = MATLAB(root_dir = '/imec/other/dl4ms/chu06/public/data/simulation_data_DDA_3targets_rx2_1000/', 
                  statistics= None, 
                  encoder=enc.encode)
 
@@ -51,7 +51,18 @@ for i in range(len(dataset)):
     reg.append(out_label[1:,idy,idx])
 
 reg = np.concatenate(reg,axis=1)
-    
+
+# Open a file in write mode
+with open('statistic_output.txt', 'w') as f:
+    # Redirect the output to the file
+    print('===  INPUT  ====', file=f)
+    print('mean',m/len(dataset), file=f)
+    print('std',s/len(dataset), file=f)
+
+    print('===  Regression  ====', file=f)
+    print('mean',np.mean(reg,axis=1), file=f)
+    print('std',np.std(reg,axis=1), file=f)
+
 print('===  INPUT  ====')
 print('mean',m/len(dataset))
 print('std',s/len(dataset))

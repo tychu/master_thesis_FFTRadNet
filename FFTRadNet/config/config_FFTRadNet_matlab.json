@@ -9,17 +9,17 @@
         "SegmentationHead": "False"
     },
     "dataset": {
-        "root_dir": "/imec/other/dl4ms/chu06/public/data/simulation_data_DDA_single_target_100/",
+        "root_dir": "/imec/other/dl4ms/chu06/public/data/simulation_data_DDA_3targets_rx2_1000/",
         "geometry":{
             "ranges": [512,896,1],
-            "resolution": [0.6,0.2],
+            "resolution": [0.673828125,0.2],
             "size": 3
         },
         "statistics":{
-            "input_mean":[1.40113858e-09, -1.53072174e-08,  1.22109185e-08,  2.58594150e-10],
-            "input_std":[2.72596013e+10, 2.75136996e+10, 2.75559747e+10, 2.73023984e+10],
-            "reg_mean":[1.13859902, 0.32137931],
-            "reg_std":[2.06553848, 0.69512452]
+            "input_mean":[-8.55256427e-11, 4.93242256e-11, -8.56120663e-11, 4.07349149e-11],
+            "input_std":[1.30511246e+09, 1.30845353e+09, 1.30842488e+09, 1.30544041e+09],
+            "reg_mean":[1.33372653, 0.3075464],
+            "reg_std":[2.33335715, 0.69076602]
         }
     },
     "losses": {
@@ -40,11 +40,11 @@
         "mode":"random",
         "split":[0.7,0.15,0.15],
         "train": {
-            "batch_size": 4,
+            "batch_size": 16,
             "num_workers": 4
     	},
         "val": {
-            "batch_size": 4,
+            "batch_size": 16,
             "num_workers": 4
         },
         "test": {
