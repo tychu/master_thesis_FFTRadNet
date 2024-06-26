@@ -129,6 +129,7 @@ def main(config, resume):
         for i, data in enumerate(train_loader):
 
             inputs = data[0].to('cuda').float()
+            print("input shape : ", inputs.shape)
 
 
             label_map = data[1].to('cuda').float()
@@ -175,14 +176,14 @@ def main(config, resume):
             
             global_step += 1
 
-            # Check if this is the last iteration
-            if (i == len(train_loader) - 1 and epoch > 2 and epoch % 10 == 0):
-            #if (i == len(train_loader) - 1 and epoch != 0):
-                print(f"Last iteration in epoch {epoch}: batch {i}")
-                print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
-                # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
-                #detection_plot(outputs['Detection'], label_map, epoch)
-                matrix_plot(outputs['Detection'], label_map, epoch)
+            # # Check if this is the last iteration
+            # if (i == len(train_loader) - 1 and epoch > 2 and epoch % 10 == 0):
+            # #if (i == len(train_loader) - 1 and epoch != 0):
+            #     print(f"Last iteration in epoch {epoch}: batch {i}")
+            #     print("let's plot!!!!!!!!!!!!!!!!!!!!!!!!")
+            #     # plot the prediction and ground truth, pixel occupied with vehicle (RA coordinate) 
+            #     #detection_plot(outputs['Detection'], label_map, epoch)
+            #     matrix_plot(outputs['Detection'], label_map, epoch)
 
 
         scheduler.step()
@@ -203,12 +204,12 @@ def main(config, resume):
                                 losses_params=config['losses'])
 
         history['val_loss'].append(eval['loss'])
-        #history['mAP'].append(eval['mAP'])
-        #history['mAR'].append(eval['mAR'])
+        history['mAP'].append(eval['mAP'])
+        history['mAR'].append(eval['mAR'])
         #history['mIoU'].append(eval['mIoU'])
 
-        #kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR']),("mIoU", eval['mIoU'])])
-        kbar.add(1, values=[("val_loss", eval['loss'])])
+        kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR']),("mIoU", eval['mIoU'])])
+        #kbar.add(1, values=[("val_loss", eval['loss'])])
 
             
 
@@ -220,7 +221,8 @@ def main(config, resume):
 
         # Saving all checkpoint as the best checkpoint for multi-task is a balance between both --> up to the user to decide
         #name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_IOU_{:.4f}.pth'.format(epoch, eval['loss'],eval['mAP'],eval['mAR'],eval['mIoU'])
-        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}.pth'.format(epoch, loss)
+        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}.pth'.format(epoch, loss, eval['mAP'], eval['mAR'])
+        #name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}.pth'.format(epoch, loss)
         filename = output_folder / exp_name / name_output_file
 
         checkpoint={}
@@ -239,112 +241,112 @@ def main(config, resume):
           
         print('')
 
-# check input        
-def rd_plot(data): 
-    directory = './plot/'
-    data_ = 20* np.log10(np.abs(data.detach().cpu().numpy().copy()))
+# # check input        
+# def rd_plot(data): 
+#     directory = './plot_0626_2rx_16bs/'
+#     data_ = 20* np.log10(np.abs(data.detach().cpu().numpy().copy()))
     
 
-    plt.figure(figsize=(6, 6))
-    plt.imshow(data_)
-    # Save the plot with an incrementally named file
-    filepath = os.path.join(directory, f'RDplot.png')
-    plt.savefig(filepath)
-    print(f'Plot saved to {filepath}')
+#     plt.figure(figsize=(6, 6))
+#     plt.imshow(data_)
+#     # Save the plot with an incrementally named file
+#     filepath = os.path.join(directory, f'RDplot.png')
+#     plt.savefig(filepath)
+#     print(f'Plot saved to {filepath}')
 
-    # Close the plot to free up memory
-    plt.close() 
+#     # Close the plot to free up memory
+#     plt.close() 
         
-### plot detection (classification)
-def detection_plot(predictions, labels, epoch):
-    prediction = predictions[:, 0, :, :]
-    print(prediction[0, 0:10, 0])
-    #target_prediction = (prediction > 0.5).float()
-    label = labels[:, 0, :, :]
-    # Specify the directory to save the plot
-    directory = './plot/'
-    # Iterate through each matrix
-    print("plotting data shape")
-    print(prediction.shape)
-    target_num = 0
-    for m in range(prediction.shape[0]):
-        # Extract the current matrix
-        pre = prediction[m]
-        lab = label[m]
+# ### plot detection (classification)
+# def detection_plot(predictions, labels, epoch):
+#     prediction = predictions[:, 0, :, :]
+#     print(prediction[0, 0:10, 0])
+#     #target_prediction = (prediction > 0.5).float()
+#     label = labels[:, 0, :, :]
+#     # Specify the directory to save the plot
+#     directory = './plot/'
+#     # Iterate through each matrix
+#     print("plotting data shape")
+#     print(prediction.shape)
+#     target_num = 0
+#     for m in range(prediction.shape[0]):
+#         # Extract the current matrix
+#         pre = prediction[m]
+#         lab = label[m]
 
-        # Create a figure
-        plt.figure(figsize=(6, 6))
+#         # Create a figure
+#         plt.figure(figsize=(6, 6))
 
-        # Plot pre: Red points
-        for i in range(pre.shape[0]):
-            for j in range(pre.shape[1]):
-                #if pre[i, j] == 1:
-                if pre[i, j] > 0.2:
-                    target_num += 1
-                    #print("predict target!!!")
-                    plt.scatter(j, i, color='red', s=1, label='prediction' if i == 0 and j == 0 else "")
-        print('number of targets in the prediction', target_num)
-        # Plot lab: Blue points
-        for i in range(lab.shape[0]):
-            for j in range(lab.shape[1]):
-                if lab[i, j] == 1:
-                    plt.scatter(j, i, color='blue', s=1, label='ground truth' if i == 0 and j == 0 else "")
+#         # Plot pre: Red points
+#         for i in range(pre.shape[0]):
+#             for j in range(pre.shape[1]):
+#                 #if pre[i, j] == 1:
+#                 if pre[i, j] > 0.2:
+#                     target_num += 1
+#                     #print("predict target!!!")
+#                     plt.scatter(j, i, color='red', s=1, label='prediction' if i == 0 and j == 0 else "")
+#         print('number of targets in the prediction', target_num)
+#         # Plot lab: Blue points
+#         for i in range(lab.shape[0]):
+#             for j in range(lab.shape[1]):
+#                 if lab[i, j] == 1:
+#                     plt.scatter(j, i, color='blue', s=1, label='ground truth' if i == 0 and j == 0 else "")
 
-        # Set plot limits and labels
-        plt.xlim(0, pre.shape[1])
-        plt.ylim(0, pre.shape[0])
-        #plt.gca().invert_yaxis()  # To match matrix indexing
-        plt.xlabel('angle Index')
-        plt.ylabel('range Index')
-        plt.title('Comparison of prediction and labels')
+#         # Set plot limits and labels
+#         plt.xlim(0, pre.shape[1])
+#         plt.ylim(0, pre.shape[0])
+#         #plt.gca().invert_yaxis()  # To match matrix indexing
+#         plt.xlabel('angle Index')
+#         plt.ylabel('range Index')
+#         plt.title('Comparison of prediction and labels')
         
-        # Save the plot with an incrementally named file
-        filepath = os.path.join(directory, f'plot_{epoch}_{m}.png')
-        plt.savefig(filepath)
-        print(f'Plot saved to {filepath}')
+#         # Save the plot with an incrementally named file
+#         filepath = os.path.join(directory, f'plot_{epoch}_{m}.png')
+#         plt.savefig(filepath)
+#         print(f'Plot saved to {filepath}')
 
-        # Close the plot to free up memory
-        plt.close()        
+#         # Close the plot to free up memory
+#         plt.close()        
 
 
-def matrix_plot(predictions, labels, epoch):
-    directory = './plot_0612_2rx_det/'
-    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+# def matrix_plot(predictions, labels, epoch):
+#     directory = './plot_0612_2rx_det/'
+#     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
-    prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
-    #target_prediction = (prediction > 0.5).float()
-    label = labels[0, 0, :, :].detach().cpu().numpy().copy()
+#     prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
+#     #target_prediction = (prediction > 0.5).float()
+#     label = labels[0, 0, :, :].detach().cpu().numpy().copy()
 
-    m1 = axs[0].imshow(prediction, cmap='magma', interpolation='none')
-    axs[0].set_title('prediction')
-    axs[0].set_ylim(0, prediction.shape[0])
-    axs[0].set_xlim(0, prediction.shape[1])
-    axs[0].set_xlabel('azimuth')
-    axs[0].set_ylabel('range')
+#     m1 = axs[0].imshow(prediction, cmap='magma', interpolation='none')
+#     axs[0].set_title('prediction')
+#     axs[0].set_ylim(0, prediction.shape[0])
+#     axs[0].set_xlim(0, prediction.shape[1])
+#     axs[0].set_xlabel('azimuth')
+#     axs[0].set_ylabel('range')
 
-    fig.colorbar(m1, ax=axs[0])
+#     fig.colorbar(m1, ax=axs[0])
 
-    # Plot the second matrix
-    m2 = axs[1].imshow(label, cmap='magma', interpolation='none', vmin=0.0, vmax=1.0)
-    axs[1].set_title('label')
-    axs[1].set_ylim(0, label.shape[0])
-    axs[1].set_xlim(0, label.shape[1])
-    axs[1].set_xlabel('azimuth')
-    axs[1].set_ylabel('range')
+#     # Plot the second matrix
+#     m2 = axs[1].imshow(label, cmap='magma', interpolation='none', vmin=0.0, vmax=1.0)
+#     axs[1].set_title('label')
+#     axs[1].set_ylim(0, label.shape[0])
+#     axs[1].set_xlim(0, label.shape[1])
+#     axs[1].set_xlabel('azimuth')
+#     axs[1].set_ylabel('range')
 
-    fig.colorbar(m2, ax=axs[1])
+#     fig.colorbar(m2, ax=axs[1])
 
-    # Save the plot with an incrementally named file
-    filepath = os.path.join(directory, f'matrix_plot_{epoch}.png')
-    plt.savefig(filepath)
-    print(f'Plot saved to {filepath}')
+#     # Save the plot with an incrementally named file
+#     filepath = os.path.join(directory, f'matrix_plot_{epoch}.png')
+#     plt.savefig(filepath)
+#     print(f'Plot saved to {filepath}')
 
-    # Close the plot to free up memory
-    plt.close()    
+#     # Close the plot to free up memory
+#     plt.close()    
 
 def loss_plot(history, epoch):
-    directory = './plot_0612_2rx_det/'
-    # Plot the loss curve
+    directory = './plot_0626_2rx_16bs/'
+    # Plot the training loss curve
     plt.figure()
     plt.plot(history['train_loss'], label='Training Loss')
     plt.xlabel('Epoch')
@@ -354,7 +356,21 @@ def loss_plot(history, epoch):
     plt.grid(True)
 
     # Save the plot
-    filepath = os.path.join(directory, f'loss_curve_{epoch}.png')
+    filepath = os.path.join(directory, f'Train_loss_curve_{epoch}.png')
+    plt.savefig(filepath)
+    plt.close()
+
+    # Plot the validating loss curve
+    plt.figure()
+    plt.plot(history['val_loss'], label='Validation Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Validation Loss Curve')
+    plt.legend()
+    plt.grid(True)
+
+    # Save the plot
+    filepath = os.path.join(directory, f'Validation_loss_curve_{epoch}.png')
     plt.savefig(filepath)
     plt.close()
 
