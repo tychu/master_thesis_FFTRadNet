@@ -109,8 +109,10 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
     AngleError = []
 
     out = []
+    thresholds = np.arange(0.1,0.96,0.1)
+    kbar_outer = pkbar.Kbar(target=len(thresholds), width=20, always_stateful=False)
 
-    for threshold in np.arange(0.1,0.96,0.1):
+    for i, threshold in enumerate(thresholds):
 
         iou_threshold.append(threshold)
 
@@ -124,7 +126,11 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
         angle_error=0
         nbObjects = 0
 
-        for frame_id in range(len(predictions)):
+        # Initialize pkbar for the inner loop
+        kbar_inner = pkbar.Kbar(target=len(predictions), width=20, always_stateful=False)
+        frame_ids = range(len(predictions))
+
+        for j, frame_id in enumerate(frame_ids):
 
             pred= predictions[frame_id]
             labels = object_labels[frame_id]
@@ -177,6 +183,8 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
                 FP += len(Object_predictions)
             elif(len(Object_predictions)==0):
                 FN += len(ground_truth_box_corners)
+
+            kbar_inner.update(j)
                 
 
 
@@ -189,6 +197,8 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
 
         RangeError.append(range_error/nbObjects)
         AngleError.append(angle_error/nbObjects)
+
+        kbar_outer.update(i)
 
     perfs['precision']=precision
     perfs['recall']=recall

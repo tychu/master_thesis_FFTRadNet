@@ -156,7 +156,7 @@ def main(config, resume):
             #loss_seg *=config['losses']['weight'][2]
 
 
-            loss = classif_loss #+ reg_loss #+ loss_seg
+            loss = classif_loss + reg_loss #+ loss_seg
 
             #writer.add_scalar('Loss/train', loss.item(), global_step)
             #writer.add_scalar('Loss/train_clc', classif_loss.item(), global_step)
@@ -169,6 +169,7 @@ def main(config, resume):
 
             # statistics
             running_loss += loss.item() * inputs.size(0)
+            print("training: each running loss : ", loss.item(), "input size : ", inputs.size(0))
         
             #kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), #("reg", reg_loss.item()),("freeSpace", loss_seg.item())])
             
@@ -345,7 +346,7 @@ def main(config, resume):
 #     plt.close()    
 
 def loss_plot(history, epoch):
-    directory = './plot_0626_2rx_16bs/'
+    directory = './plot_0627_2rx_16bs/'
     # Plot the training loss curve
     plt.figure()
     plt.plot(history['train_loss'], label='Training Loss')

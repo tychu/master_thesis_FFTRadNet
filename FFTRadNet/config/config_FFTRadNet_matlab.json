@@ -35,16 +35,16 @@
     "optimizer": {
         "lr": 1e-4
     },
-    "num_epochs":300,
+    "num_epochs":500,
     "dataloader": {
         "mode":"random",
         "split":[0.7,0.15,0.15],
         "train": {
-            "batch_size": 8,
+            "batch_size": 4,
             "num_workers": 4
     	},
         "val": {
-            "batch_size": 8,
+            "batch_size": 4,
             "num_workers": 4
         },
         "test": {
