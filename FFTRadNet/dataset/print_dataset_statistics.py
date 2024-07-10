@@ -10,7 +10,7 @@ import numpy as np
 
 
 geometry = {    "ranges": [512,896,1],
-                "resolution": [0.201171875,0.2],
+                "resolution": [0.673828125,0.2],
                 "size": 3}
 
 statistics = {  "input_mean":np.zeros(32),
@@ -26,7 +26,7 @@ enc = ra_encoder(geometry = geometry,
 #                        statistics=None,
 #                        encoder=enc.encode,
 #                        difficult=True)
-dataset = MATLAB(root_dir = '/imec/other/ruoyumsc/users/chu/matlab-radar-automotive/simulation_data_DDA/', 
+dataset = MATLAB(root_dir = '/imec/other/dl4ms/chu06/public/data/simulation_sequential_trace_data_DDA_3targets_rx16_500/', 
                  statistics= None, 
                  encoder=enc.encode)
 
@@ -40,8 +40,8 @@ for i in range(len(dataset)):
 
     print('radar_FFT : ', radar_FFT.shape)
     
-    #data = np.reshape(radar_FFT,(512*256,32))
-    data = np.reshape(radar_FFT,(512*256,4))
+    data = np.reshape(radar_FFT,(512*256,32))
+    #data = np.reshape(radar_FFT,(512*256,4))
     
     m += data.mean(axis=0)
     s += data.std(axis=0)
@@ -55,8 +55,13 @@ reg = np.concatenate(reg,axis=1)
 print('===  INPUT  ====')
 print('mean',m/len(dataset))
 print('std',s/len(dataset))
+# Print mean and std separated by commas
+print('mean:', ', '.join(map(str, m/len(dataset))))
+print('std:', ', '.join(map(str, s/len(dataset))))
 
 print('===  Regression  ====')
 print('mean',np.mean(reg,axis=1))
 print('std',np.std(reg,axis=1))
-
+# Print mean and std separated by commas
+print('mean:', ', '.join(map(str, np.mean(reg,axis=1))))
+print('std:', ', '.join(map(str, np.std(reg,axis=1))))
