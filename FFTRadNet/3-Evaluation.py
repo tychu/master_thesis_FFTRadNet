@@ -51,18 +51,22 @@ def main(config, checkpoint,difficult):
                         regression_layer = 2, 
                         detection_head = config['model']['DetectionHead'], 
                         segmentation_head = config['model']['SegmentationHead'])
-
+    
+    print("Parameters: ",sum(p.numel() for p in net.parameters() if p.requires_grad))
     net.to('cuda')
 
 
     print('===========  Loading the model ==================:')
     dict = torch.load(checkpoint)
     net.load_state_dict(dict['net_state_dict'])
+    epochs = dict['epoch']
     
     print('===========  Running the evaluation ==================:')
-    run_iEvaluation(net,train_loader,enc, datamode='train') # only run some plot to check the output
-    run_FullEvaluation(net,train_loader,enc)
+    run_iEvaluation(net,train_loader,enc, epochs, datamode='train') # only run some plot to check the output
+    #run_FullEvaluation(net,val_loader,enc)
     #run_FullEvaluation(net,test_loader,enc)
+    #run_FullEvaluation(net,train_loader,enc)
+
     
 
    
