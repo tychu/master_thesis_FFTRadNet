@@ -57,6 +57,8 @@ def run_evaluation(net,loader,encoder,check_perf=False, detection_loss=None,segm
 
                 metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
                             threshold=0.2,range_min=5,range_max=100) 
+                #metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
+                #            threshold=0.2,range_min=0,range_max=345) 
                 
 
 
@@ -71,7 +73,7 @@ def run_evaluation(net,loader,encoder,check_perf=False, detection_loss=None,segm
 
 def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):
 
-    #net.eval()
+    net.eval()
     
     kbar = pkbar.Kbar(target=len(loader), width=20, always_stateful=False)
 
@@ -124,9 +126,9 @@ def run_FullEvaluation(net,loader,encoder,iou_threshold=0.5):
     # print('------- Freespace Scores ------------')
     # print('  mIoU',mIoU*100,'%')
 
-def run_iEvaluation(net,loader,encoder,datamode,iou_threshold=0.5):
+def run_iEvaluation(net,loader,encoder,epochs, datamode,iou_threshold=0.5):
 
-    #net.eval()
+    net.eval()
     model_mode = net.training
 
 
@@ -150,8 +152,8 @@ def run_iEvaluation(net,loader,encoder,datamode,iou_threshold=0.5):
             out_obj = outputs['Detection'].detach().cpu().numpy().copy()
             out_seg = torch.sigmoid(outputs['Segmentation']).detach().cpu().numpy().copy()
             
-            matrix_plot(outputs['Detection'], label_map, model_mode, datamode, epoch=150, batch = i) # debugging  
-            detection_plot(outputs['Detection'], label_map, model_mode, datamode, epoch=150, batch = i)   
+            matrix_plot(outputs['Detection'], label_map, model_mode, datamode, epoch=epochs, batch = i) # debugging  
+            detection_plot(outputs['Detection'], label_map, model_mode, datamode, epoch=epochs, batch = i)   
 
             labels_object = data[3]
             label_freespace = data[2].numpy().copy()
@@ -175,7 +177,7 @@ def run_iEvaluation(net,loader,encoder,datamode,iou_threshold=0.5):
         kbar.update(i)
 
 def matrix_plot(predictions, labels, model_mode, datamode, epoch, batch):
-    directory = './plot_0612_16rx_detreg/'
+    directory = './plot_0706_16rx_seqdata/'
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
     prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
@@ -202,6 +204,9 @@ def matrix_plot(predictions, labels, model_mode, datamode, epoch, batch):
     fig.colorbar(m2, ax=axs[1])
 
     # Save the plot with an incrementally named file
+    # Check if the directory exists, if not, create it
+    if not os.path.exists(directory):
+        os.makedirs(directory)
     if model_mode:
         filepath = os.path.join(directory, f'matrix_plot_epoch{epoch}_batch{batch}_{datamode}_trainnet.png')
     else:
@@ -219,7 +224,7 @@ def detection_plot(predictions, labels, model_mode, datamode, epoch, batch):
     #target_prediction = (prediction > 0.5).float()
     label = labels[0, 0, :, :].detach().cpu().numpy().copy()
     # Specify the directory to save the plot
-    directory = './plot_0612_16rx_detreg/'
+    directory = './plot_0706_16rx_seqdata/'
     # Iterate through each matrix
 
     target_num = 0
@@ -232,7 +237,7 @@ def detection_plot(predictions, labels, model_mode, datamode, epoch, batch):
     for i in range(prediction.shape[0]):
         for j in range(prediction.shape[1]):
             #if pre[i, j] == 1:
-            if prediction[i, j] >= 0.05:
+            if prediction[i, j] >= 0.1:
                 target_num += 1
                 print("predict target!!! probability: ", prediction[i, j] )
                 plt.scatter(j, i, color='red', s=1, label='prediction' if i == 0 and j == 0 else "")
@@ -252,6 +257,9 @@ def detection_plot(predictions, labels, model_mode, datamode, epoch, batch):
     plt.title('Comparison of prediction and labels')
     
     # Save the plot with an incrementally named file
+    # Check if the directory exists, if not, create it
+    if not os.path.exists(directory):
+        os.makedirs(directory)
     if model_mode:
         filepath = os.path.join(directory, f'plot_epoch{epoch}_batch{batch}_{datamode}_trainnet.png')
     else:
