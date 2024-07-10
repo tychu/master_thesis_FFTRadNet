@@ -1,3 +1,24 @@
+# Overview
+Since we don't have the RADIal dataset, we use MATLAB to simulate dataset. There are some modification for adapting the code to read in MATLAB's simulation dataset
+server directory: /imec/other/dl4ms/chu06/RADIal
+Dataset directory: /imec/other/dl4ms/public/data
+- **FFTRadNet folder:** includes all the running script
+- **Meeting slides:** the slides of bi-weekly meeting
+- **literature:** related papers for implementation
+
+## Dataset 
+
+|                Parameters                    | Training Loss |  Notes |
+|----------------------------------------------|---------------|-----------------|
+| Tx=12, rx=16, data size=500, # targets=1     | simulation_data_DDA         |            |
+| Tx=12, rx=16, data size=500, # targets=3     | simulation_data_DDA_3targets         |            |
+| Tx=12, rx=16, data size=500, # targets=3     | simulation_sequential_data_DDA_3targets_rx16_500         | Simulate sequential movement  |
+| Tx=12, rx=16, data size=500, # targets=3     | simulation_sequential_trace_data_DDA_3targets_rx16_500         | Simulate sequential movement (with random starting point and with limitation of 5<range<100)            |
+
+
+
+# Original README file content from RADIal
+
 [![Watch the video](https://img.youtube.com/vi/bBEKZ7dl7zE/maxresdefault.jpg)](https://youtu.be/bBEKZ7dl7zE)
 
 # Latest news:
