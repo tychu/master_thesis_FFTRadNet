@@ -199,6 +199,9 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
 
     F1_score = (np.mean(precision)*np.mean(recall))/((np.mean(precision) + np.mean(recall))/2)
 
+    output_file = 'detection_scores.txt'
+    #save_detection_scores(perfs, F1_score, output_file)
+
     print('------- Detection Scores ------------')
     print('  mAP:',np.mean(perfs['precision']))
     print('  mAR:',np.mean(perfs['recall']))
@@ -209,6 +212,15 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
     # print('------- Regression Errors------------')
     # print('  Range Error:',np.mean(RangeError),'m')
     # print('  Angle Error:',np.mean(AngleError),'degree')
+### for saving the print
+def save_detection_scores(perfs, F1_score, output_file):
+    
+    print("Saving scores to:", output_file)
+    with open(output_file, 'a') as f:
+        f.write('------- Detection Scores ------------\n')
+        f.write('  mAP: {0}\n'.format(np.mean(perfs['precision'])))
+        f.write('  mAR: {0}\n'.format(np.mean(perfs['recall'])))
+        f.write('  F1 score: {0}\n'.format(F1_score))
 
 def GetDetMetrics(predictions,object_labels,threshold=0.2,range_min=5,range_max=70,IOU_threshold=0.2):
 
