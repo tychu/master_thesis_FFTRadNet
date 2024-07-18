@@ -67,6 +67,6 @@
         }
     },
     "output": {
-	"dir": "../"
+	"dir": "/imec/other/dl4ms/chu06/public/model_checkpoint/"
     }
 }
