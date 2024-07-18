@@ -8,7 +8,7 @@ Dataset directory: /imec/other/dl4ms/public/data
 
 ## Dataset 
 
-|                Parameters                    | Training Loss |  Notes |
+|                Parameters                    | Dataset |  Notes |
 |----------------------------------------------|---------------|-----------------|
 | Tx=12, rx=16, data size=500, # targets=1     | simulation_data_DDA         |            |
 | Tx=12, rx=16, data size=500, # targets=3     | simulation_data_DDA_3targets         |            |

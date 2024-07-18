@@ -83,7 +83,7 @@ $ python 5-Model_result.py --config config/config_FFTRadNet_matlab_seq.json --ev
 FFTRadNet is released under the [Apache 2.0 license](./LICENSE).
 
 ## checkpoint files
-### random targets dataset
+### Using random targets dataset
 |                Parameters             | checkpoint (file path /imec/other/dl4ms/chu06/RADIal/) |  Notes |
 |---------------------------------------|---------------|-----------------|
 | rx=16, data size=500, # targets=1     | FFTRadNet_matlab_Jun-12-2024_16rx_detection_regression/         |  Not shuffle training dataset          |
@@ -96,7 +96,7 @@ FFTRadNet is released under the [Apache 2.0 license](./LICENSE).
 | rx=2, data size=1000, # targets=3     | FFTRadNet_matlab_Jun-27-2024_2rx_detreg_3targets_batch16/         |  Shuffle training dataset; Batch size=16 (original batch size=4) 1000 samples          |
 | rx=2, data size=1000, # targets=3     | FFTRadNet_matlab___Jun-27-2024___23:01:23/         |  Shuffle training dataset; Batch size=8 (original batch size=4) 1000 samples          |
 
-#### sequential targets dataset
+#### Using sequential targets dataset
 |                Parameters             | checkpoint (file path /imec/other/dl4ms/chu06/RADIal/) |  Notes |
 |---------------------------------------|---------------|-----------------|
 | rx=16, data size=500, # targets=3     | FFTRadNet_matlab_Jul-05-2024_16rx_3targets_shuffle_seqdata/         |  Shuffle training dataset        |
