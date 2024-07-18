@@ -26,7 +26,7 @@ enc = ra_encoder(geometry = geometry,
 #                        statistics=None,
 #                        encoder=enc.encode,
 #                        difficult=True)
-dataset = MATLAB(root_dir = '/imec/other/dl4ms/chu06/public/data/simulation_sequential_trace_data_DDA_3targets_rx16_500/', 
+dataset = MATLAB(root_dir = '/imec/other/dl4ms/chu06/public/data/simulation_sequential_data_DDA_3targets_rx16_2000/', 
                  statistics= None, 
                  encoder=enc.encode)
 

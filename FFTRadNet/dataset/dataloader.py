@@ -23,7 +23,7 @@ def RADIal_collate(batch):
         
     return torch.stack(FFTs), torch.stack(encoded_label),torch.stack(segmaps),labels,torch.stack(images),
 
-def CreateDataLoaders(dataset,config=None,seed=0):
+def CreateDataLoaders(dataset,batch_size,config=None,seed=0):
 
     if(config['mode']=='random'):
         # generated training and validation set
@@ -73,6 +73,7 @@ def CreateDataLoaders(dataset,config=None,seed=0):
         return train_loader,val_loader,test_loader
     
     elif(config['mode']=='simulated_sequential'):
+        print("dataloader mode: simulated_sequential")
         # generated training and validation set
         # number of images used for training and validation
         n_images = dataset.__len__()
@@ -100,16 +101,15 @@ def CreateDataLoaders(dataset,config=None,seed=0):
         print('      Validation:', len(val_dataset))
         print('      Test:', len(test_dataset))
         print('')
-        
         # create data_loaders
         train_loader = DataLoader(train_dataset, 
-                                batch_size=config['train']['batch_size'], 
+                                batch_size= batch_size,#config['train']['batch_size'], 
                                 shuffle=True,
                                 num_workers=config['train']['num_workers'],
                                 pin_memory=True,
                                 collate_fn=RADIal_collate)
         val_loader =  DataLoader(val_dataset, 
-                                batch_size=config['val']['batch_size'], 
+                                batch_size=batch_size,#config['val']['batch_size'], 
                                 shuffle=False,
                                 num_workers=config['val']['num_workers'],
                                 pin_memory=True,

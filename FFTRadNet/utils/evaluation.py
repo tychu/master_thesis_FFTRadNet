@@ -6,8 +6,9 @@ import pkbar
 import matplotlib.pyplot as plt
 import os
 import torch.nn as nn
+from utils.plots import matrix_plot, detection_plot
 
-def run_evaluation(net,loader,encoder,check_perf=False, detection_loss=None,segmentation_loss=None,losses_params=None):
+def run_evaluation(trial, net,loader,encoder,check_perf=False, detection_loss=None,segmentation_loss=None,losses_params=None):
 
     metrics = Metrics()
     metrics.reset()
@@ -16,6 +17,9 @@ def run_evaluation(net,loader,encoder,check_perf=False, detection_loss=None,segm
     running_loss = 0.0
     
     kbar = pkbar.Kbar(target=len(loader), width=20, always_stateful=False)
+
+    encoder_threshold = trial.suggest_float("encoder_threshold", 0.01, 0.07, step=0.02) # paper set 0.05
+    FFT_confidence_threshold = trial.suggest_float("FFT_confidence_threshold", 0.1, 0.5, step=0.1) # paper set 0.2
 
     for i, data in enumerate(loader):
 
@@ -55,10 +59,12 @@ def run_evaluation(net,loader,encoder,check_perf=False, detection_loss=None,segm
 
             for pred_obj,pred_map,true_obj,true_map in zip(out_obj,out_seg,labels,label_freespace):
 
-                metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
-                            threshold=0.2,range_min=5,range_max=100) 
                 #metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
-                #            threshold=0.2,range_min=0,range_max=345) 
+                #            threshold=0.2,range_min=5,range_max=100) 
+                # metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
+                #             threshold=0.2,range_min=0,range_max=345) 
+                metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,encoder_threshold)),true_obj,
+                            threshold=FFT_confidence_threshold,range_min=0,range_max=345) 
                 
 
 
@@ -176,96 +182,3 @@ def run_iEvaluation(net,loader,encoder,epochs, datamode,iou_threshold=0.5):
 
         kbar.update(i)
 
-def matrix_plot(predictions, labels, model_mode, datamode, epoch, batch):
-    directory = './plot_0706_16rx_seqdata/'
-    fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-
-    prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
-    #target_prediction = (prediction > 0.5).float()
-    label = labels[0, 0, :, :].detach().cpu().numpy().copy()
-
-    m1 = axs[0].imshow(prediction, cmap='magma', interpolation='none')
-    axs[0].set_title('prediction')
-    axs[0].set_ylim(0, prediction.shape[0])
-    axs[0].set_xlim(0, prediction.shape[1])
-    axs[0].set_xlabel('azimuth')
-    axs[0].set_ylabel('range')
-
-    fig.colorbar(m1, ax=axs[0])
-
-    # Plot the second matrix
-    m2 = axs[1].imshow(label, cmap='magma', interpolation='none', vmin=0.0, vmax=1.0)
-    axs[1].set_title('label')
-    axs[1].set_ylim(0, label.shape[0])
-    axs[1].set_xlim(0, label.shape[1])
-    axs[1].set_xlabel('azimuth')
-    axs[1].set_ylabel('range')
-
-    fig.colorbar(m2, ax=axs[1])
-
-    # Save the plot with an incrementally named file
-    # Check if the directory exists, if not, create it
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    if model_mode:
-        filepath = os.path.join(directory, f'matrix_plot_epoch{epoch}_batch{batch}_{datamode}_trainnet.png')
-    else:
-        filepath = os.path.join(directory, f'matrix_plot_epoch{epoch}_batch{batch}_{datamode}.png')
-    plt.savefig(filepath)
-    print(f'Plot saved to {filepath}')
-
-    # Close the plot to free up memory
-    plt.close()     
-
-### plot detection (classification)
-def detection_plot(predictions, labels, model_mode, datamode, epoch, batch):
-    prediction = predictions[0, 0, :, :].detach().cpu().numpy().copy()
-    
-    #target_prediction = (prediction > 0.5).float()
-    label = labels[0, 0, :, :].detach().cpu().numpy().copy()
-    # Specify the directory to save the plot
-    directory = './plot_0706_16rx_seqdata/'
-    # Iterate through each matrix
-
-    target_num = 0
-
-
-    # Create a figure
-    plt.figure(figsize=(6, 6))
-
-    # Plot pre: Red points
-    for i in range(prediction.shape[0]):
-        for j in range(prediction.shape[1]):
-            #if pre[i, j] == 1:
-            if prediction[i, j] >= 0.1:
-                target_num += 1
-                print("predict target!!! probability: ", prediction[i, j] )
-                plt.scatter(j, i, color='red', s=1, label='prediction' if i == 0 and j == 0 else "")
-    print('number of targets in the prediction', target_num)
-    # Plot lab: Blue points
-    for i in range(label.shape[0]):
-        for j in range(label.shape[1]):
-            if label[i, j] == 1:
-                plt.scatter(j, i, color='blue', s=1, label='ground truth' if i == 0 and j == 0 else "")
-
-    # Set plot limits and labels
-    plt.xlim(0, prediction.shape[1])
-    plt.ylim(0, prediction.shape[0])
-    #plt.gca().invert_yaxis()  # To match matrix indexing
-    plt.xlabel('angle Index')
-    plt.ylabel('range Index')
-    plt.title('Comparison of prediction and labels')
-    
-    # Save the plot with an incrementally named file
-    # Check if the directory exists, if not, create it
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    if model_mode:
-        filepath = os.path.join(directory, f'plot_epoch{epoch}_batch{batch}_{datamode}_trainnet.png')
-    else:
-        filepath = os.path.join(directory, f'plot_epoch{epoch}_batch{batch}_{datamode}.png')
-    plt.savefig(filepath)
-    print(f'Plot saved to {filepath}')
-
-    # Close the plot to free up memory
-    plt.close()        
