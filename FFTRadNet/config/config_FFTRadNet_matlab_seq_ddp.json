@@ -1,0 +1,77 @@
+{
+    "name": "FFTRadNet_matlab",
+    "seed":3,
+    "optuna_project": "optuna-ddp",
+    "save_every":10,
+    "model": {
+        "backbone_block": [3, 6, 6, 3],
+        "channels": [32,40,48,56],
+        "MIMO_output": 192,
+        "NbTxAntenna":12,
+        "NbRxAntenna":16,
+        "DetectionHead": "True",
+        "SegmentationHead": "False"
+    },
+    "dataset": {
+        "root_dir": "/imec/other/dl4ms/chu06/public/data/",
+        "data_folder":"simulation_sequential_data_DDA_3targets_rx16_500/",
+        "geometry":{
+            "ranges": [512,896,1],
+            "resolution": [0.673828125,0.2],
+            "size": 3
+        },
+        "statistics":{
+            "input_mean":[-8.58190324e-11,  1.31553882e-10, -3.02539456e-10, -1.02798716e-10,
+            3.47205853e-11,  8.85982103e-11, -1.11842615e-10,  2.49702467e-11,
+            2.21408668e-11, -3.14162309e-11,  1.23608573e-10, -9.83772720e-11,
+           -9.60837222e-11, -1.35078730e-10, -4.94185372e-11,  3.04250467e-11,
+            6.43217395e-11, -1.39677147e-10, -4.40987742e-10, -1.20628556e-11,
+            1.17211605e-10,  8.51988743e-11, -9.44381009e-12,  1.41024765e-10,
+            1.28635239e-10, -1.85789493e-10, -1.38811685e-10, -9.80825251e-11,
+           -1.30323808e-10, -2.11398805e-10,  1.62585668e-10,  8.80624322e-11],
+            "input_std":[5.50419001e+08, 5.46940124e+08, 5.43479522e+08, 5.40345734e+08,
+            5.37758666e+08, 5.35890667e+08, 5.34882043e+08, 5.34783167e+08,
+            5.35605140e+08, 5.37339780e+08, 5.39830180e+08, 5.42897540e+08,
+            5.46317883e+08, 5.49802205e+08, 5.53057204e+08, 5.55957532e+08,
+            5.45352913e+08, 5.48845438e+08, 5.52275659e+08, 5.55335031e+08,
+            5.57843267e+08, 5.59637713e+08, 5.60596772e+08, 5.60691743e+08,
+            5.59911407e+08, 5.58244823e+08, 5.55838112e+08, 5.52846581e+08,
+            5.49464420e+08, 5.45976146e+08, 5.42682020e+08, 5.39707320e+08],
+            "reg_mean":[1.29875816, 0.29495372],
+            "reg_std":[2.33182947, 0.69412096]
+        }
+    },
+    "losses": {
+        "fct":"PixorLoss",
+        "classification": "FocalLoss",
+        "regression": "smoothL1Loss",
+        "weight": [1,100,100]
+    },
+    "lr_scheduler": {
+        "step_size": 10,
+        "gamma": 0.9
+    },
+    "optimizer": {
+        "lr": 1e-4
+    },
+    "num_epochs":500,
+    "dataloader": {
+        "mode":"simulated_sequential_ddp",
+        "split":[0.7,0.15,0.15],
+        "train": {
+            "batch_size": 4,
+            "num_workers": 4
+    	},
+        "val": {
+            "batch_size": 4,
+            "num_workers": 4
+        },
+        "test": {
+            "batch_size": 1,
+            "num_workers": 1
+        }
+    },
+    "output": {
+	"dir": "/imec/other/dl4ms/chu06/public/model_checkpoint/"
+    }
+}
