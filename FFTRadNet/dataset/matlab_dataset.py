@@ -10,9 +10,10 @@ import scipy.io as sio
 
 class MATLAB(Dataset):
 
-    def __init__(self, root_dir,statistics=None,encoder=None,difficult=False):
+    def __init__(self, root_dir,folder_dir, statistics=None,encoder=None,difficult=False):
 
         self.root_dir = root_dir
+        self.folder_dir = folder_dir
         self.statistics = statistics
         self.encoder = encoder
         
@@ -22,8 +23,10 @@ class MATLAB(Dataset):
         #print('check labels length')
         #print(len(self.labels))
 
-        self.mat_files = [f for f in os.listdir(os.path.join(self.root_dir, 'RD_cube/')) if f.endswith('.mat')]
-        self.csv_files = [f for f in os.listdir(os.path.join(self.root_dir, 'ground_truth/')) if f.endswith('.csv')]
+        self.mat_files = [f for f in os.listdir(os.path.join(self.root_dir, self.folder_dir, 'RD_cube/')) if f.endswith('.mat')]
+        
+        self.csv_files = [f for f in os.listdir(os.path.join(self.root_dir, self.folder_dir, 'ground_truth/')) if f.endswith('.csv')]
+        #self.image_files = [f for f in os.listdir(os.path.join(self.root_dir, 'camera/')) if f.endswith('.jpg')]
         
        
         # Keeps only easy samples
@@ -50,11 +53,19 @@ class MATLAB(Dataset):
 
     def __len__(self):
         #return len(self.label_dict)
+        print("dataset len: ", len(self.mat_files))
         return len(self.mat_files)
         #return len(self.labels)
 
     #def __getitem__(self, index):
     def __getitem__(self, idx):
+
+
+        # print("csv file: ", len(self.csv_files))
+        # print("mat files: ", len(self.mat_files))
+        # print(f"Fetching index: {idx}")
+        if idx >= len(self.csv_files) or idx >= len(self.mat_files):
+            raise IndexError(f"Index {idx} out of range for file lists. csv file: {len(self.csv_files)}, mat file: {len(self.mat_files)}")
         
         # Get the sample id
         #sample_id = self.sample_keys[index] 
@@ -79,9 +90,11 @@ class MATLAB(Dataset):
         ######################
         #  Encode the labels #
         ######################
-        
+        idx_adj = idx +1
         # load lables
-        csv_file = os.path.join(self.root_dir, 'ground_truth/', self.csv_files[idx])
+        csv_file = os.path.join(self.root_dir, self.folder_dir, 'ground_truth/',f"ground_truth_{idx_adj}.csv")
+        #print("csv file indx :", csv_file)
+        #csv_file = os.path.join(self.root_dir, 'ground_truth/', self.csv_files[idx])
         box_labels = pd.read_csv(csv_file).to_numpy()
         #print(box_labels.shape)
 
@@ -93,7 +106,9 @@ class MATLAB(Dataset):
 
         # Read the Radar FFT data
         #radar_name = os.path.join(self.root_dir,'radar_FFT',"fft_{:06d}.npy".format(sample_id))
-        mat_file = os.path.join(self.root_dir, 'RD_cube/', self.mat_files[idx])
+        mat_file = os.path.join(self.root_dir, self.folder_dir, 'RD_cube/',f"RD_cube_{idx_adj}.mat")
+        #print("mat file indx :", mat_file)
+        #mat_file = os.path.join(self.root_dir, 'RD_cube/', self.mat_files[idx])
         mat_input_4d = sio.loadmat(mat_file)['radar_data_cube_4d']
         mat_input_3d = mat_input_4d[:, :, 0, :]
 
@@ -113,7 +128,7 @@ class MATLAB(Dataset):
 
         # mat_input_3d = np.stack(combine_data_list, axis=-1)
         
-
+        #print("radar FFT")
         radar_FFT = np.concatenate([mat_input_3d.real,mat_input_3d.imag],axis=2)
         #print("Shape of concatenated array:", radar_FFT.shape)
 
@@ -126,19 +141,25 @@ class MATLAB(Dataset):
         #        radar_FFT[...,i] -= sta_mean[i]
         #        radar_FFT[...,i] /= sta_std[i]
 
-        # Read the segmentation map
-        #segmap_name = os.path.join(self.root_dir,'radar_Freespace',"freespace_{:06d}.png".format(sample_id))
-        segmap_name = os.path.join(self.root_dir,'radar_Freespace/',"freespace.png")
-        segmap = Image.open(segmap_name) # [512,900]
-        # 512 pix for the range and 900 pix for the horizontal FOV (180deg)
-        # We crop the fov to 89.6deg
-        segmap = self.crop(segmap)
-        # and we resize to half of its size
-        segmap = np.asarray(self.resize(segmap))==255
+        # # Read the segmentation map 
+        # # just read any image to work the model first
+        # ## TODO: remove image from model input
+        # #print("seg map")
+        # #segmap_name = os.path.join(self.root_dir,'radar_Freespace',"freespace_{:06d}.png".format(sample_id))
+        # segmap_name = os.path.join(self.root_dir, 'camera/', self.image_files[idx_adj])
+        # #segmap_name = os.path.join(self.root_dir,'radar_Freespace/',"freespace.png")
+        # segmap = Image.open(segmap_name) # [512,900]
+        # # 512 pix for the range and 900 pix for the horizontal FOV (180deg)
+        # # We crop the fov to 89.6deg
+        # segmap = self.crop(segmap)
+        # # and we resize to half of its size
+        # segmap = np.asarray(self.resize(segmap))==255
+        # #print("segmap : ", len(segmap))
 
-        # Read the camera image
-        #img_name = os.path.join(self.root_dir,'camera',"image_{:06d}.jpg".format(sample_id))
-        img_name = os.path.join(self.root_dir,'camera/',"image_001010.jpg")
-        image = np.asarray(Image.open(img_name))
+        # # Read the camera image
+        # img_name = os.path.join(self.root_dir, 'camera/', self.image_files[idx_adj])
+        # #img_name = os.path.join(self.root_dir,'camera/',"image_001010.jpg")
+        # image = np.asarray(Image.open(img_name))
+        # #print("image : ", len(image))
 
-        return radar_FFT, segmap,out_label,box_labels,image
+        return radar_FFT,out_label,box_labels

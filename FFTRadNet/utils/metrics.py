@@ -8,6 +8,9 @@ import argparse
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
+from torchvision.ops import box_iou
+
+
 def RA_to_cartesian_box(data):
     L = 4
     W = 1.8
@@ -33,7 +36,8 @@ def perform_nms(valid_class_predictions, valid_box_predictions, nms_threshold):
         # get the IOUs of all boxes with the currently most certain bounding box
         try:
             ious = np.zeros((sorted_box_predictions.shape[0]))
-            ious[i + 1:] = bbox_iou(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
+            #ious[i + 1:] = bbox_iou(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
+            ious[i + 1:] = bbox_iou_pytorch(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
         except ValueError:
             break
         except IndexError:
@@ -45,6 +49,39 @@ def perform_nms(valid_class_predictions, valid_box_predictions, nms_threshold):
         sorted_class_predictions = sorted_class_predictions[overlap_mask]
 
     return sorted_class_predictions, sorted_box_predictions
+
+def convert_corners_to_xyxy(boxes):
+    """
+    Convert bounding boxes from corner points to [x1, y1, x2, y2] format.
+    
+    Args:
+        boxes (numpy.ndarray): Array of shape (N, 4, 2) representing N bounding boxes.
+                               Each bounding box is represented by 4 corner points (4x2).
+    
+    Returns:
+        torch.Tensor: Array of shape (N, 4) representing N bounding boxes in [x1, y1, x2, y2] format.
+    """
+    boxes = boxes.reshape(boxes.shape[0], 4, 2)
+    x_coords = boxes[:, :, 0]
+    y_coords = boxes[:, :, 1]
+    x1 = np.min(x_coords, axis=1)
+    y1 = np.min(y_coords, axis=1)
+    x2 = np.max(x_coords, axis=1)
+    y2 = np.max(y_coords, axis=1)
+    
+    xyxy_boxes = np.stack((x1, y1, x2, y2), axis=1)
+    return torch.tensor(xyxy_boxes, dtype=torch.float32)
+
+
+def bbox_iou_pytorch(box1, boxes):
+    # Convert to [x1, y1, x2, y2]
+    box1_xyxy = convert_corners_to_xyxy(box1[np.newaxis, :])
+    boxes_xyxy = convert_corners_to_xyxy(boxes)
+
+    # Calculate IoU using PyTorch
+    iou = box_iou(box1_xyxy, boxes_xyxy)
+    return iou.numpy()
+
 def bbox_iou(box1, boxes):
 
     # currently inspected box
@@ -258,7 +295,8 @@ def GetDetMetrics(predictions,object_labels,threshold=0.2,range_min=5,range_max=
         used_gt = np.zeros(len(ground_truth_box_corners))
 
         for pid, prediction in enumerate(Object_predictions):
-            iou = bbox_iou(prediction[1:], ground_truth_box_corners)
+            #iou = bbox_iou(prediction[1:], ground_truth_box_corners)
+            iou = bbox_iou_pytorch(prediction[1:], ground_truth_box_corners)
             ids = np.where(iou>=IOU_threshold)[0]
 
             if(len(ids)>0):
@@ -309,7 +347,8 @@ class Metrics():
         #     union = np.sum(label) + np.sum(pred) -intersection
         #     self.iou.append(intersection /union)
 
-        TP,FP,FN = GetDetMetrics(ObjectPred,Objectlabels,threshold=0.2,range_min=range_min,range_max=range_max)
+        #TP,FP,FN = GetDetMetrics(ObjectPred,Objectlabels,threshold=0.2,range_min=range_min,range_max=range_max)
+        TP,FP,FN = GetDetMetrics(ObjectPred,Objectlabels,threshold,range_min=range_min,range_max=range_max)
 
         self.TP += TP
         self.FP += FP

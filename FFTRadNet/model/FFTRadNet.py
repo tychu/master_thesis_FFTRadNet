@@ -133,7 +133,7 @@ class FPN_BackBone(nn.Module):
         self.block_expansion = block_expansion
         self.use_bn = use_bn
 
-        # pre processing block to reorganize MIMO channels ##  2 * The number of input channels is the number NRx of Rx antennas=16
+        # pre processing block to reorganize MIMO channels ##  2 (imag and real part) * The number of input channels is the number NRx of Rx antennas=16
         self.pre_enc = MIMO_PreEncoder(NbRxAntenna*2,mimo_layer,
                                         kernel_size=(1,NbTxAntenna),
                                         dilation=(1,NbRxAntenna),
