@@ -57,8 +57,6 @@ def pixor_loss(batch_predictions, batch_labels,param):
         classification_loss = focal_loss(classification_prediction, classification_label)
     else:
         classification_loss = F.binary_cross_entropy(classification_prediction.double(), classification_label.double(),reduction='sum')
-    print('classification_loss')
-    print(classification_loss)
     
     #####################
     #  Regression loss  #
@@ -102,8 +100,6 @@ def pixor_loss(batch_predictions, batch_labels,param):
         reg_loss_fct = nn.L1Loss(reduction='sum')
     
     regression_loss = reg_loss_fct(P*M,T)
-    print('regression_loss')
-    print(regression_loss)
     NbPts = M.sum()
     if(NbPts>0):
         regression_loss/=NbPts
