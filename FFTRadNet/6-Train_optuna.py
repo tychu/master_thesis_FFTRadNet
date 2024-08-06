@@ -84,11 +84,11 @@ def objective(trial, config):
                      encoder=enc.encode)
     # Create the model
     # Suggest value for mimo_layer
-    mimo_layer = trial.suggest_int('mimo_layer', 64, 192, step=64)
+    mimo_layer = config['model']['MIMO_output'] #trial.suggest_int('mimo_layer', 64, 192, step=64)
 
     net = FFTRadNet(
         blocks=config['model']['backbone_block'],
-        mimo_layer= config['model']['MIMO_output'], #mimo_layer
+        mimo_layer= mimo_layer,
         Ntx = config['model']['NbTxAntenna'],
         Nrx = config['model']['NbRxAntenna'],
         channels=config['model']['channels'],
@@ -122,7 +122,6 @@ def objective(trial, config):
     history = {'train_loss': [], 'val_loss': [], 'lr': [], 'mAP': [], 'mAR': [], 'val_f1': [], 'train_f1': []}
 
     train_loader, val_loader, _ = CreateDataLoaders(dataset, batch_size, config['dataloader'], config['seed'])
-    print("batch size: ", batch_size)
     
     # init tracking experiment.
     # hyper-parameters, trial id are stored.
