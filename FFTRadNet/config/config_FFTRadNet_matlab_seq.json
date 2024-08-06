@@ -9,7 +9,8 @@
         "SegmentationHead": "False"
     },
     "dataset": {
-        "root_dir": "/imec/other/dl4ms/chu06/public/data/simulation_sequential_data_DDA_3targets_rx16_500/",
+        "root_dir": "/imec/other/dl4ms/chu06/public/data/",
+        "data_folder":"simulation_sequential_data_DDA_3targets_rx16_500/",
         "geometry":{
             "ranges": [512,896,1],
             "resolution": [0.673828125,0.2],
