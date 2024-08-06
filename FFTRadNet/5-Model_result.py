@@ -2,15 +2,15 @@ import os
 import torch
 import torch.nn as nn
 import numpy as np
-#from some_module import YourDatasetClass, YourModelClass, FocalLoss  # Replace with your actual module and class names
+
 
 import random
 import json
 import argparse
-from model.FFTRadNet import FFTRadNet
+from model.FFTRadNet_ddp import FFTRadNet
 from dataset.encoder import ra_encoder
 from dataset.dataloader import CreateDataLoaders
-from utils.evaluation import run_FullEvaluation
+
 from loss import pixor_loss
 from dataset.matlab_dataset import MATLAB
 from utils.evaluation import run_evaluation
@@ -19,218 +19,227 @@ import matplotlib.pyplot as plt
 
 from utils.plots import plot_histograms, create_video_from_images
 
-# def load_model_from_checkpoint(model, checkpoint_path):
-#     checkpoint = torch.load(checkpoint_path)
-#     model.load_state_dict(checkpoint['net_state_dict'])
 
-#     return model
+import os
+import json
+import torch
+import random
+import argparse
+import numpy as np
+import matplotlib.pyplot as plt
+import re
 
-def read_epoch_losses(file_path, evalmode):
-    epoch_losses = {}
-    with open(file_path, 'r') as f:
-        for line in f:
-            if evalmode:
-                # Split the line to extract epoch and loss
-                parts = line.split(':')
-                epoch = int(parts[0].strip().split()[1])
-                loss = float(parts[1].strip())
-                
-                epoch_losses[epoch] = loss
-            else:
-                # Example line format: "Epoch 0: {'loss': 2562296.7998046875, 'mAP': 0, 'mAR': 0, 'mIoU': 0}"
-                parts = line.strip().split(':', 1)
-                epoch = int(parts[0].split()[1])
-                
-                # Find the loss value in the string
-                loss_str = parts[1]
-                loss = float(loss_str.split("'loss': ")[1].split(",")[0].strip())
-                
-                epoch_losses[epoch] = loss
-    return epoch_losses
+# class EpochLossReader:
+#     def __init__(self, file_path):
+#         self.file_path = file_path
 
-def load_all_predictions(checkpoint_dir):
-    checkpoint_files = sorted([f for f in os.listdir(checkpoint_dir) if f.endswith('.pth')])
-    predictions = []
+#     def read_epoch_losses(self):
+#         epoch_losses = {}
+#         with open(self.file_path, 'r') as f:
+#             for line in f:
+#                 parts = line.strip().split(':', 1)
+#                 epoch = int(parts[0].split()[1])
+#                 loss_str = parts[1]
+#                 loss = float(loss_str.split("'loss': ")[1].split(",")[0].strip())
+#                 epoch_losses[epoch] = loss
+#         return epoch_losses
 
-    for checkpoint_file in checkpoint_files:
-        checkpoint_path = os.path.join(checkpoint_dir, checkpoint_file)
-        checkpoint = torch.load(checkpoint_path)
-        prediction = checkpoint['prediction']  # Assuming prediction is stored in the checkpoint
-        predictions.append(prediction)
-    
-    return predictions
+# class PredictionLoader:
+#     def __init__(self, checkpoint_dir):
+#         self.checkpoint_dir = checkpoint_dir
 
-def plot_validation_losses(epoch_train_losses, epoch_val_losses, val_division, evalmode, output_file):
-    if evalmode:
+#     def load_all_predictions(self):
+#         checkpoint_files = sorted([f for f in os.listdir(self.checkpoint_dir) if f.endswith('.pth')])
+#         predictions = []
+#         for checkpoint_file in checkpoint_files:
+#             checkpoint_path = os.path.join(self.checkpoint_dir, checkpoint_file)
+#             checkpoint = torch.load(checkpoint_path)
+#             prediction = checkpoint['prediction']  # Assuming prediction is stored in the checkpoint
+#             predictions.append(prediction)
+#         return predictions
+
+class LossPlotter:
+    def __init__(self, output_file, val_division):
+        self.output_file = output_file
+        self.val_division = val_division
+
+    def plot_validation_losses(self, epoch_train_losses, epoch_val_losses):
         train_epochs = list(range(len(epoch_train_losses)))
         train_losses = epoch_train_losses
-        
-        #print("epoch_val_losses : ", epoch_val_losses)
         val_epochs = list(range(len(epoch_val_losses)))
-        val_losses = [loss / val_division for loss in epoch_val_losses]
+        val_losses = epoch_val_losses
         #val_epochs = sorted(epoch_val_losses.keys())
-        #val_losses = [epoch_val_losses[epoch] / val_division for epoch in val_epoch]
-        #print(val_losses)
-    else:
-        train_epochs = list(range(len(epoch_train_losses)))
-        train_losses = epoch_train_losses
-        
-        val_epochs = sorted(epoch_val_losses.keys())
-        val_losses = [epoch_val_losses[epoch] / val_division for epoch in val_epochs]
-        #print("epoch_val_losses : ", epoch_val_losses)
-        #print("val_losses : ", val_losses)
+        #val_losses = [epoch_val_losses[epoch] / self.val_division for epoch in val_epochs]
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_epochs, train_losses, color='blue', label='Training Loss')
-    plt.plot(val_epochs, val_losses, color='green', label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.ylim(0, 800)
-    plt.title('Training and Validation Loss per Epoch')
-    plt.legend()
-    plt.grid(True)
-    # Adding ticks every 10 epochs
-    max_epoch = max(train_epochs + val_epochs)
-    ticks = list(range(0, max_epoch + 1, 10))
-    plt.xticks(ticks, rotation=45) 
-    plt.savefig(output_file)
-    print(f'Plot saved to {output_file}')
+        plt.figure(figsize=(10, 6))
+        plt.plot(train_epochs, train_losses, color='blue', label='Training Loss')
+        plt.plot(val_epochs, val_losses, color='green', label='Validation Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.ylim(0, 800)
+        plt.title('Training and Validation Loss per Epoch')
+        plt.legend()
+        plt.grid(True)
+        max_epoch = max(train_epochs + val_epochs)
+        ticks = list(range(0, max_epoch + 1, 10))
+        plt.xticks(ticks, rotation=45)
+        plt.savefig(self.output_file)
+        print(f'Plot saved to {self.output_file}')
 
-def main(config, checkpoint_dir, evalmode, histogram, lossplot, output_val_file='16rx_3targets_seqdata_eval_validation_losses_90epoch.txt', plot_file='16rx_3targets_seqdata_eval_validation_losses_90epoch.png'):
-    #evalmode = True
-    output_dir = "/imec/other/dl4ms/chu06/RADIal/FFTRadNet/plot/histogram/"
+class MainProcess:
+    def __init__(self, config, checkpoint_dir, histogram, lossplot, plot_file, save_plot_path):
+    #def __init__(self, config, checkpoint_dir, histogram, lossplot, output_val_file, plot_file, save_plot_path):
+        self.config = config
+        self.checkpoint_dir = checkpoint_dir
+        self.histogram = histogram
+        self.lossplot = lossplot
+        #self.output_val_file = output_val_file
+        self.plot_file = plot_file
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.setup_seed()
+        self.val_division = None
+        self.save_plot_path = save_plot_path
 
-    # Setup random seed
-    torch.manual_seed(config['seed'])
-    np.random.seed(config['seed'])
-    random.seed(config['seed'])
-    torch.cuda.manual_seed(config['seed'])
+    def setup_seed(self):
+        torch.manual_seed(self.config['seed'])
+        np.random.seed(self.config['seed'])
+        random.seed(self.config['seed'])
+        torch.cuda.manual_seed(self.config['seed'])
 
-    # set device
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    def load_data(self, batch_size):
+        enc = ra_encoder(
+            geometry=self.config['dataset']['geometry'],
+            statistics=self.config['dataset']['statistics'],
+            regression_layer=2
+        )
+        dataset = MATLAB(
+            root_dir=self.config['dataset']['root_dir'],
+            folder_dir = config['dataset']['data_folder'],
+            statistics=self.config['dataset']['statistics'],
+            encoder=enc.encode
+        )
+        train_loader, val_loader, test_loader = CreateDataLoaders(dataset, batch_size, self.config['dataloader'], self.config['seed'])
+        self.val_division = len(val_loader.dataset)
+        return train_loader, val_loader
 
-    # Load the dataset
-    enc = ra_encoder(geometry = config['dataset']['geometry'], 
-                        statistics = config['dataset']['statistics'],
-                        regression_layer = 2)
-        
-    dataset = MATLAB(root_dir = config['dataset']['root_dir'],
-                        statistics= config['dataset']['statistics'],
-                        encoder=enc.encode)
+    def load_model(self, mimo):
+        net = FFTRadNet(
+            blocks=self.config['model']['backbone_block'],
+            mimo_layer=mimo, #self.config['model']['MIMO_output'],
+            Ntx = config['model']['NbTxAntenna'],
+            Nrx = config['model']['NbRxAntenna'],
+            channels=self.config['model']['channels'],
+            regression_layer=2,
+            detection_head=self.config['model']['DetectionHead'],
+        )
+        return net.to('cuda')
 
-    train_loader, val_loader, test_loader = CreateDataLoaders(dataset,config['dataloader'],config['seed'])
+    def create_histograms(self, net, dataset, epoch, batch_size):
+        all_outputs = []
+        for i, data in enumerate(dataset):
+            inputs = data[0].to('cuda').float()
+            with torch.set_grad_enabled(False):
+                outputs = net(inputs)
+                # Collect the outputs
+                all_outputs.append(outputs.detach().cpu().numpy().copy())
+        # Concatenate all outputs into a single array
+        all_outputs = np.concatenate(all_outputs, axis=0)
+        # Plot histogram for the entire dataset
+        save_path = os.path.join(self.save_plot_path, self.plot_file)
+        plot_histograms(all_outputs, epoch, self.histogram, batch_size, self.save_plot_path)
 
-    val_division = len(val_loader.dataset)
+    #def calculate_validation_loss(self, net, enc, val_loader):
+    #    return run_evaluation(net, val_loader, enc, check_perf=False, detection_loss=pixor_loss, segmentation_loss=None, losses_params=self.config['losses'])
 
-    if evalmode: # already saved the loss in checkpoint_file.pth
-        dict = torch.load(evalmode) 
-        history = dict['history']
-        epoch_train_losses = history['train_loss']
-        epoch_val_losses = history['val_loss']
+    #def save_epoch_losses(self, epoch_losses_val):
+    #    with open(self.output_val_file, 'w') as f:
+    #        for epoch, loss in epoch_losses_val.items():
+    #            f.write(f'Epoch {epoch}: {loss}\n')
 
-    else:       
-        if not os.path.exists(output_val_file) or histogram:
-            print("initialize model")
-            # Initialize your model
-            net = FFTRadNet(blocks = config['model']['backbone_block'],
-                                mimo_layer  = config['model']['MIMO_output'],
-                                channels = config['model']['channels'], 
-                                regression_layer = 2, 
-                                detection_head = config['model']['DetectionHead'], 
-                                segmentation_head = config['model']['SegmentationHead'])
-            net = net.to('cuda')
+    def create_video_if_histogram(self):
+        if self.histogram:
+            create_video_from_images(self.save_plot_path, fps=2)
+    
+    def get_latest_checkpoint(self):
+        checkpoint_files = [f for f in os.listdir(self.checkpoint_dir) if f.endswith('.pth')]
+        max_epoch = -1
+        latest_checkpoint = None
+
+        for checkpoint_file in checkpoint_files:
+            epoch = int(checkpoint_file.split('_')[2][5:])
+            if epoch > max_epoch:
+                max_epoch = epoch
+                latest_checkpoint = checkpoint_file
+
+        return latest_checkpoint
+    def extract_params_from_filename(self, filename):
+
+        epoch_match = re.search(r'_epoch(\d+)', filename)
+        mimo_match = re.search(r'_mimo(\d+)', filename)
+
+        epoch = int(epoch_match.group(1)) if epoch_match else None
+        mimo_layer = int(mimo_match.group(1)) if mimo_match else None
+
+        return epoch, mimo_layer
+
+    def run(self, batch_size, check_epoch):
+        if self.histogram:
+            train_loader, val_loader = self.load_data(batch_size)
             
-            # Dictionary to store validation loss for each epoch
-            epoch_losses_val = {}
-            epoch_losses_train = {}
-            
-            # Get list of checkpoint files
-            checkpoint_files = sorted([f for f in os.listdir(checkpoint_dir) if f.endswith('.pth')])
-            
+            checkpoint_files = sorted([f for f in os.listdir(self.checkpoint_dir) if f.endswith('.pth')])
             for checkpoint_file in checkpoint_files:
-                # Extract epoch number from the filename
-                epoch = int(checkpoint_file.split('_')[2][5:])  # Extract the number after 'epoch'
+                epoch, mimo = self.extract_params_from_filename(checkpoint_file)
+                print("mimo: ", mimo)
+
+                net = self.load_model(mimo)
                 
-                # Load model from checkpoint
-                checkpoint_path = os.path.join(checkpoint_dir, checkpoint_file)
-                print("checkpoint_path : ", checkpoint_path) 
-                #net = load_model_from_checkpoint(net, checkpoint_path)
-                checkpoint = torch.load(checkpoint_path)
-                net.load_state_dict(checkpoint['net_state_dict'])
-                # 
-                #prediction = checkpoint['prediction']  # Assuming prediction is stored in the checkpoint
-                #predictions.append(prediction)
+                if check_epoch > 0:
+                    if epoch == check_epoch:
+                        print("in the right loop")
+                        checkpoint_path = os.path.join(self.checkpoint_dir, checkpoint_file)
+                        checkpoint = torch.load(checkpoint_path)
+                        net.load_state_dict(checkpoint['net_state_dict'])
+                        if self.histogram:
+                            dataset = train_loader if self.histogram == "train" else val_loader
+                            self.create_histograms(net, dataset, epoch, batch_size)
 
-                if histogram:
-                    if histogram == "train":
-                        dataset = train_loader
-                    elif histogram == 'val':
-                        dataset = val_loader
-                    for i, data in enumerate(dataset): # change to adjustable
-                        if (i % 5 == 0):
-                            inputs = data[0].to('cuda').float()
+                else:
+                    if epoch % 5 == 0:
+                        checkpoint_path = os.path.join(self.checkpoint_dir, checkpoint_file)
+                        checkpoint = torch.load(checkpoint_path)
+                        net.load_state_dict(checkpoint['net_state_dict'])
+                        if self.histogram:
+                            dataset = train_loader if self.histogram == "train" else val_loader
+                            self.create_histograms(net, dataset, epoch, batch_size)
+            self.create_video_if_histogram()
 
-
-                            with torch.set_grad_enabled(False):
-                                outputs = net(inputs)
-                            
-                            plot_histograms(outputs['Detection'], epoch, histogram, i,output_dir)
-
-                
-                if lossplot:
-                    # Calculate validation loss without net.eval()
-                    validation_loss = run_evaluation(net,val_loader,enc,check_perf=False,
-                                            detection_loss=pixor_loss,segmentation_loss=None,
-                                            losses_params=config['losses'])
-                        
-                    epoch_losses_val[epoch] = validation_loss 
-                    print(f'Epoch {epoch}: Validation Loss = {validation_loss}')
-
-
-            if lossplot:
-                # Save the epoch losses to a file
-                with open(output_val_file, 'w') as f:
-                    for epoch, loss in epoch_losses_val.items():
-                        f.write(f'Epoch {epoch}: {loss}\n')
-                # with open(output_train_file, 'w') as f:
-                #     for epoch, loss in epoch_losses_train.items():
-                #         f.write(f'Epoch {epoch}: {loss}\n')
-            if histogram:
-                create_video_from_images(output_dir, fps=2)        
-        else:
-            print(f'{output_val_file} already exists. Skipping reading .pth files.')
-        
-        if lossplot:
-        # Load model from checkpoint
-            checkpoint_path = os.path.join(checkpoint_dir, 'FFTRadNet_matlab_epoch499_loss_13.0259_AP_0.0000_AR_0.0000.pth')
-            print("checkpoint_path : ", checkpoint_path) 
+        if self.lossplot:
+            last_checkpoint = self.get_latest_checkpoint()
+            checkpoint_path = os.path.join(self.checkpoint_dir, last_checkpoint)
             dict = torch.load(checkpoint_path)
             history = dict['history']
             epoch_train_losses = history['train_loss']
+            epoch_val_losses = history['val_loss']
+            LossPlotter(self.plot_file, self.val_division).plot_validation_losses(epoch_train_losses, epoch_val_losses)
+            print("Finished loss plotting")
 
-            epoch_val_losses = read_epoch_losses(output_val_file, evalmode)  
 
-    if lossplot:
-        # Plot the validation losses
-
-        plot_validation_losses(epoch_train_losses, epoch_val_losses, val_division, evalmode, plot_file)
-        print("finish plotting")
 
 if __name__ == "__main__":
-    # PARSE THE ARGS
     parser = argparse.ArgumentParser(description='Model checking')
-    parser.add_argument('-c', '--config', default='config.json',type=str,
-                        help='Path to the config file (default: config.json)')
-    parser.add_argument('-r', '--checkpointdir', default=None, type=str,
-                        help='Path to the .pth model checkpoint folder to load all checkpoint files')
-    parser.add_argument('--evalmode', default=None, type=str, help='Flag to use eval() and path to the checkpoint file')
-    # the last epoch checkpoint file (have all the previous epoch record)
-    parser.add_argument('--histogram', type=str, 
-                        help='If provided, process data to create histograms. Provide string to indicate dataset.') # train_loader val_loader
-    parser.add_argument('--lossplot', action='store_true')
-    args = parser.parse_args()
+    parser.add_argument('-c', '--config', default='config.json', type=str, help='Path to the config file (default: config.json)')
+    parser.add_argument('-r', '--checkpointdir', default=None, type=str, help='Path to the .pth model checkpoint folder to load all checkpoint files')
+    parser.add_argument('-his', '--histogram', type=str, help='If provided, process data to create histograms. Provide "train" to indicate train dataset.')
+    parser.add_argument('-loss', '--lossplot', action='store_true')
+    parser.add_argument('-b', type=int, default=4, help='Batch size')
+    parser.add_argument('-e', type=int, help='specific epoch to check')
 
+    args = parser.parse_args()
+    print(args)
     config = json.load(open(args.config))
-    
-    main(config, args.checkpointdir, args.evalmode, args.histogram, args.lossplot)
-    #main(checkpoint_dir, validation_data_path)
+    main_process = MainProcess(config, args.checkpointdir, 
+                               args.histogram, 
+                               args.lossplot, 
+                               '2rx_10000_seqdata', 
+                               "/imec/other/dl4ms/chu06/public/plot/FFTRadNet/histogram/")
+    main_process.run(args.b, args.e)
