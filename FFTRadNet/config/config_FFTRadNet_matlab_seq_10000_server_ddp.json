@@ -1,7 +1,7 @@
 {
     "name": "FFTRadNet_matlab",
     "seed":3,
-    "optuna_project": "optuna-10000-noseghead-server-ddp",
+    "optuna_project": "optuna-10000-ddp",
     "save_every":10,
     "model": {
         "backbone_block": [3, 6, 6, 3],

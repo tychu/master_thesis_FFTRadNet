@@ -41,7 +41,7 @@ from optuna.integration.wandb import WeightsAndBiasesCallback
 
 from torch.utils.data import Dataset, DataLoader
 
-from model.FFTRadNet_ddp import FFTRadNet
+from model.FFTRadNet_noseg import FFTRadNet
 from dataset.dataloader_ddp import CreateDataLoaders
 from dataset.matlab_dataset_ddp import MATLAB
 from utils.evaluation_ddp import run_evaluation
@@ -86,7 +86,8 @@ def ddp_setup(rank, world_size, barrier):
 
 
         #master_port = find_free_port()
-        os.environ['MASTER_PORT'] = '48113'
+        #os.environ['MASTER_PORT'] = '48113' # GPU v100
+        os.environ['MASTER_PORT'] = '38853' # GPU a100
 
 
         start_time = time.time()
@@ -179,10 +180,10 @@ class Trainer:
             # accumulate batch loss
             total_train_loss += loss.item()
 
-            kbar.update(i, values=[("loss", loss.item()) ] )
+            #kbar.update(i, values=[("loss", loss.item()) ] )
         
         self.scheduler.step() # lr_scheduler
-        print_memory_summary()
+
         return total_train_loss
 
     def _run_train_evaluation(self, epoch):
@@ -248,12 +249,12 @@ class Trainer:
         self.model.train()
 
         total_train_loss = self._run_epoch(epoch, train_loss, kbar)
-        f1_t, mAP_t, mAR_t =self._run_train_evaluation(epoch)
+        #f1_t, mAP_t, mAR_t =self._run_train_evaluation(epoch)
         f1, mAP, mAR, total_val_loss = self._run_evaluation(epoch, val_loss)
         if self.gpu_id == 0 and epoch % self.save_every == 0:
             self._save_checkpoint(epoch)
 
-        return f1_t, mAP_t, mAR_t, f1, mAP, mAR, total_val_loss, total_train_loss
+        return f1, mAP, mAR, total_val_loss, total_train_loss
 
 # ddp
 def load_train_objs(config, optuna_config):
@@ -279,7 +280,7 @@ def load_train_objs(config, optuna_config):
                         )
     # Optimizer
     lr = optuna_config['optimizer']['lr'] # optuna tuning     #float(config['optimizer']['lr'])
-    step_size = int(config['lr_scheduler']['step_size'])
+    step_size = optuna_config['optimizer']['step_size'] #int(config['lr_scheduler']['step_size'])
     gamma = float(config['lr_scheduler']['gamma'])
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
@@ -316,27 +317,31 @@ def objective(single_trial, config, rank,world_size):
     # Set up the config as per trial parameters
     optuna_config = {
         "optimizer": {
-            "lr": trial.suggest_float("lr", 1e-5, 1e-3, log=True) # original: 1-e4
+            "lr": trial.suggest_float("lr", 1e-5, 1e-3, log=True), # original: 1-e4
+            "step_size": trial.suggest_int('step_size', 5, 20, step=5) # original: 10
         },
         "model": {
             "mimo_layer": trial.suggest_int('mimo_layer', 64, 192, step=64) # original: 192
         },
-        "batch_size": trial.suggest_categorical('batch_size', [32]), # original: 4
-        "threshold":  trial.suggest_float("FFT_confidence_threshold", 0.1, 0.2, step=0.05) # original: 0.2
+        #"batch_size": trial.suggest_categorical('batch_size', [32]), # original: 4
+        #"threshold":  trial.suggest_float("FFT_confidence_threshold", 0.1, 0.2, step=0.05) # original: 0.2
     }
 
     # load model and dataset
     dataset, model, optimizer, scheduler, encoder = load_train_objs(config, optuna_config)
-    train_data, val_data = prepare_dataloader(config, dataset, optuna_config['batch_size'])
+    
+    #train_data, val_data = prepare_dataloader(config, dataset, optuna_config['batch_size'])
+    train_data, val_data = prepare_dataloader(config, dataset, config['dataloader']['train']['batch_size'])
 
     # init trainer
     trainer = Trainer(model, train_data, val_data, optimizer, rank, config['save_every'], config, optuna_config, scheduler, encoder)
 
     # set epoch
-    if optuna_config['batch_size'] == 4 or optuna_config['batch_size'] == 8:
-        num_epochs = 100
-    elif optuna_config['batch_size'] == 16 or optuna_config['batch_size'] == 32:
-        num_epochs = 200 
+    num_epochs = 100
+    # if optuna_config['batch_size'] == 4 or optuna_config['batch_size'] == 8:
+    #     num_epochs = 100
+    # elif optuna_config['batch_size'] == 16 or optuna_config['batch_size'] == 32:
+    #     num_epochs = 200 
 
     # wandb
     # init tracking experiment
@@ -355,24 +360,22 @@ def objective(single_trial, config, rank,world_size):
     history = {'train_loss': [], 'val_loss': [], 'lr': [], 'mAP': [], 'mAR': [], 'F1_score': [], 
                'train_mAP': [], 'train_mAR': [], 'train_F1_score': []}
 
-    print_memory_summary()
 
+    print(range(num_epochs))
     for epoch in range(num_epochs):
         # Initialize epoch_loss to accumulate the loss over all batches in this epoch.
         epoch_train_loss = 0.0
         epoch_val_loss = 0.0
         
-        start_time = time.time()
+
         
         print('--- epoch: ', epoch)
         kbar = pkbar.Kbar(target=len(train_data), epoch=epoch, num_epochs=num_epochs, width=20, always_stateful=False)
 
         # Training the model and compute evaluate score
-        F1_score_t, mAP_t, mAR_t, F1_score, mAP, mAR, val_loss, train_loss = trainer.train(epoch, epoch_train_loss, epoch_val_loss, kbar)
+        F1_score, mAP, mAR, val_loss, train_loss = trainer.train(epoch, epoch_train_loss, epoch_val_loss, kbar)
 
-        end_time = time.time()
-        init_duration = end_time - start_time
-        print(f"Initialization took {init_duration:.2f} seconds.")
+
 
         # Use torch.distributed.all_reduce to sum up the losses across all processes.
         train_loss_tensor = torch.tensor([train_loss], dtype=torch.float).to(rank)
@@ -388,19 +391,15 @@ def objective(single_trial, config, rank,world_size):
         history['mAP'].append(mAP)
         history['mAR'].append(mAR)
         history['F1_score'].append(F1_score)
-        history['train_mAP'].append(mAP_t)
-        history['train_mAR'].append(mAR_t)
-        history['train_F1_score'].append(F1_score_t)
 
+
+        print("trial.report")
         trial.report(F1_score, epoch)
         if rank == 0:
             # report F1_score to wandb
             wandb.log(data={"Validation F1 score": F1_score, 
                             "Validation precision":mAP, 
                             "Validation recall":mAR, 
-                            "Train F1 score": F1_score_t, 
-                            "Train precision":mAP_t, 
-                            "Train recall":mAR_t, 
                             "Training loss":ave_train_loss, 
                             "Validation loss":ave_val_loss,
                                                     }, 
@@ -416,7 +415,7 @@ def objective(single_trial, config, rank,world_size):
                                                                                                                                               , mAP
                                                                                                                                               , mAR
                                                                                                                                               , trial.number
-                                                                                                                                              , optuna_config['batch_size']
+                                                                                                                                              , config['dataloader']['train']['batch_size'] #optuna_config['batch_size']
                                                                                                                                               , optuna_config['model']['mimo_layer'])
         filename = output_folder / exp_name / name_output_file
 
@@ -425,18 +424,19 @@ def objective(single_trial, config, rank,world_size):
         checkpoint['optimizer'] = optimizer.state_dict()
         checkpoint['scheduler'] = scheduler.state_dict()
         checkpoint['epoch'] = epoch
-        checkpoint['batch_size'] = optuna_config['batch_size']
+        checkpoint['batch_size'] = config['dataloader']['train']['batch_size'] #optuna_config['batch_size']
         checkpoint['mimo_layer'] = optuna_config['model']['mimo_layer']
         checkpoint['lr'] = optuna_config['optimizer']['lr']
         checkpoint['history'] = history
 
         torch.save(checkpoint,filename)
+        print("checkpoint filename: ", filename)
    
     # report the final validation accuracy to wandb
     wandb.run.summary["final accuracy"] = F1_score
     wandb.run.summary["state"] = "completed"
     wandb.finish(quiet=True)
-    destroy_process_group()
+    #destroy_process_group()
 
     return F1_score  # Replace with the metric you are optimizing
 
@@ -444,6 +444,7 @@ def objective(single_trial, config, rank,world_size):
 def run_optimize(rank, world_size, return_dict, N_trials, config):
     
     print(f"Running basic DDP example on rank {rank}")
+    print(f"number of trial {N_trials}")
 
     barrier = Barrier(world_size)
     ddp_setup(rank, world_size, barrier)
@@ -451,7 +452,9 @@ def run_optimize(rank, world_size, return_dict, N_trials, config):
     device = torch.device(f"cuda:{rank}")
 
     if rank == 0:
-        study = optuna.create_study(direction="maximize")
+        study = optuna.create_study(direction="maximize", study_name='FFTRadNet_optimization', 
+                                pruner=optuna.pruners.PercentilePruner(50.0, n_startup_trials=5,
+                                           n_warmup_steps=30, interval_steps=10))
         study.optimize(
             partial(objective, config=config, rank=rank, world_size=world_size),
             n_trials=N_trials,

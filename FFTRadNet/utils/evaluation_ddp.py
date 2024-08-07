@@ -142,12 +142,10 @@ def run_evaluation(net, loader,encoder, gpu, optuna_config, check_perf=False, de
 
     #encoder_threshold = trial.suggest_float("encoder_threshold", 0.01, 0.07, step=0.02) # paper set 0.05
     #FFT_confidence_threshold = trial.suggest_float("FFT_confidence_threshold", 0.1, 0.5, step=0.1) # paper set 0.2
-    # Initialize a list to store the computation times for each iteration.
-    computation_times = []
+
 
     for i, data in enumerate(loader):
-        # Record the start time.
-        start_time = time.time()
+
 
         # input, out_label,segmap,labels
         inputs = data[0].to(gpu).float()
@@ -179,17 +177,13 @@ def run_evaluation(net, loader,encoder, gpu, optuna_config, check_perf=False, de
 
                 #metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
                 #            threshold=0.2,range_min=5,range_max=100) 
-                #metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
-                #            threshold=0.2,range_min=0,range_max=345) 
-                metrics.update(pred_map,true_map,np.asarray(encoder.decode(pred_obj,optuna_config['threshold'])),true_obj,
-                             threshold=optuna_config['threshold'],range_min=0,range_max=345) 
+                metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
+                           threshold=0.2,range_min=0,range_max=345) 
+                # metrics.update(pred_map,true_map,np.asarray(encoder.decode(pred_obj,optuna_config['threshold'])),true_obj,
+                #              threshold=optuna_config['threshold'],range_min=0,range_max=345) 
                 
 
-        # Record the end time and calculate the computation time for this iteration.
-        end_time = time.time()
-        computation_time = end_time - start_time
-        #computation_times.append(computation_time)
-        print(f"Iteration {i}: Computation time = {computation_time:.4f} seconds")
+
 
 
         

@@ -75,6 +75,17 @@ $ python 6-Train_optuna.py --config config/config_FFTRadNet_matlab_seq_10000_ser
 --config: path/to/the/config/file
 --trials: indicate the number of trials you want to test 
 
+### Hyperparameter tuning with optuna and ddp
+To do hyperparameter tuning
+```
+$ python /imec/other/dl4ms/chu06/RADIal/FFTRadNet/6-Train_optuna_ddp_spawn.py --config /imec/other/dl4ms/chu06/RADIal/FFTRadNet/config/config_FFTRadNet_matlab_seq_10000_server_ddp.json 10 --trial 60
+```
+--config: path/to/the/config/file
+-- 10: saving ddp checkpoint file every 10 epochs
+--trials: indicate the number of trials you want to test 
+
+
+
 ### Additional code
 - **4-Data_checking.py :** check RadIal input files (all the input .npy files are identical)
 - **5-Model_result.py :** check model training and validation loss and plot the loss for every epoch (compute validation loss without eval() mode )
