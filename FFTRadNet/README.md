@@ -84,6 +84,14 @@ $ python /imec/other/dl4ms/chu06/RADIal/FFTRadNet/6-Train_optuna_ddp_spawn.py --
 -- 10: saving ddp checkpoint file every 10 epochs
 --trials: indicate the number of trials you want to test 
 
+### Checking optuna experiment result
+
+```
+python 7-Evaluation_optuna.py --config config/config_FFTRadNet_matlab_seq_10000_server.json -d /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/ -e 40
+```
+--config: path/to/the/config/file
+-d: where the checkpoint files saved
+-e: the specific epoch to check
 
 
 ### Additional code
