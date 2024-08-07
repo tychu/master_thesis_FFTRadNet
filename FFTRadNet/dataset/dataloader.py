@@ -115,7 +115,7 @@ def CreateDataLoaders(dataset,batch_size,config=None,seed=0):
                                 collate_fn=RADIal_collate)
         val_loader =  DataLoader(val_dataset, 
                                 batch_size=batch_size,#config['val']['batch_size'], 
-                                shuffle=False,
+                                shuffle=True,
                                 num_workers=config['val']['num_workers'],
                                 pin_memory=True,
                                 collate_fn=RADIal_collate)

@@ -26,7 +26,7 @@ from optuna.trial import TrialState
 import wandb
 from optuna.integration.wandb import WeightsAndBiasesCallback
 
-from model.FFTRadNet_ddp import FFTRadNet
+from model.FFTRadNet_noseg import FFTRadNet
 
 def train(config, net, train_loader, optimizer, scheduler, history, kbar):
     net.train()
@@ -49,7 +49,7 @@ def train(config, net, train_loader, optimizer, scheduler, history, kbar):
         optimizer.step()
         running_loss += loss.item() * inputs.size(0)
 
-        kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item()) ] )
+        #kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item()) ] )
 
     scheduler.step()
     history['train_loss'].append(running_loss / len(train_loader.dataset))
@@ -84,7 +84,7 @@ def objective(trial, config):
                      encoder=enc.encode)
     # Create the model
     # Suggest value for mimo_layer
-    mimo_layer = config['model']['MIMO_output'] #trial.suggest_int('mimo_layer', 64, 192, step=64)
+    mimo_layer = trial.suggest_int('mimo_layer', 64, 192, step=64)
 
     net = FFTRadNet(
         blocks=config['model']['backbone_block'],
@@ -98,16 +98,15 @@ def objective(trial, config):
     net.to('cuda')
 
     # Define hyperparameters to be tuned
-    #lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True) # paper set :1e-4
-    lr = float(config['optimizer']['lr'])
-    step_size = int(config['lr_scheduler']['step_size'])
-    #step_size = trial.suggest_int('step_size', 5, 15, step=5) # paper set :10
+    lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True) # paper set :1e-4
+    #lr = float(config['optimizer']['lr'])
+    #step_size = int(config['lr_scheduler']['step_size'])
+    step_size = trial.suggest_int('step_size', 5, 20, step=5) # paper set :10
     gamma =  float(config['lr_scheduler']['gamma']) #trial.suggest_uniform('gamma', 0.1, 0.9)
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     # Conditional parameter suggestion
-    #batch_size = trial.suggest_categorical('batch_size', [16, 32])
-    batch_size = trial.suggest_categorical('batch_size', [4, 8]) # for testing script on not specific GPU server 
+    batch_size = 4 #trial.suggest_categorical('batch_size', [4]) # for testing script on not specific GPU server 
     if batch_size == 4 or batch_size == 8:
         num_epochs = 100
     elif batch_size == 16 or batch_size == 32:
@@ -115,10 +114,8 @@ def objective(trial, config):
     
 
     #num_epochs = int(config['num_epochs'])
-    #threshold = trial.suggest_float("FFT_confidence_threshold", 0.1, 0.2, step=0.05) # paper set 0.2
-    threshold =0.2
-
-    #freespace_loss = nn.BCEWithLogitsLoss(reduction='mean')
+    threshold = 0.2 #trial.suggest_categorical('threshold', [0.2]) # paper set 0.2
+    
     history = {'train_loss': [], 'val_loss': [], 'lr': [], 'mAP': [], 'mAR': [], 'val_f1': [], 'train_f1': []}
 
     train_loader, val_loader, _ = CreateDataLoaders(dataset, batch_size, config['dataloader'], config['seed'])
@@ -165,7 +162,7 @@ def objective(trial, config):
         history['val_f1'].append(F1_score)
         #history['train_f1'].append(tra_F1_score)
 
-        kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR'])])
+        #kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR'])])
 
         # Pruning
         trial.report(F1_score, epoch)
@@ -203,11 +200,6 @@ def objective(trial, config):
         torch.save(checkpoint,filename)
             
         print('')
-        # # Early stopping
-        # if eval['mAP'] > best_mAP:
-        #     best_mAP = eval['mAP']
-        #     trial.set_user_attr('best_epoch', epoch)
-        #     trial.set_user_attr('best_model', net.state_dict())
     
     # report the final validation accuracy to wandb
     wandb.run.summary["final accuracy"] = F1_score
@@ -229,15 +221,40 @@ if __name__ == '__main__':
     # wandb might cause an error without this.
     os.environ["WANDB_START_METHOD"] = "thread"
     
-    # optuna without parallel
-    study = optuna.create_study(direction='maximize', study_name='FFTRadNet_optimization', pruner=optuna.pruners.MedianPruner())
 
-    ## parallel optuna trial 
-    # first command in terminal to initializing the study:
-    # optuna create-study --study-name FFTRadNet_optimization --storage sqlite:///FFTRadNet_optimization_study.db
-    # study = optuna.load_study(
-    #     study_name="FFTRadNet_optimization", storage="sqlite:///FFTRadNet_optimization_study.db"
-    # )
+
+    # Specific parameter combination for the first trial
+    fixed_params = {
+        "lr": 1e-4,
+        "step_size": 10,
+        "mimo_layer": 192,
+    }
+
+    # Create a FixedTrial object
+    fixed_trial = optuna.trial.FixedTrial(fixed_params)
+
+    # Evaluate the objective function with the fixed parameters
+    baseline_score = objective(fixed_trial, config)
+
+    # Create a study
+    # optuna without parallel
+    study = optuna.create_study(direction='maximize', study_name='FFTRadNet_optimization', 
+                                pruner=optuna.pruners.PercentilePruner(50.0, n_startup_trials=5,
+                                           n_warmup_steps=30, interval_steps=10))
+    
+    #study = optuna.create_study(direction='maximize')
+
+    # Add the baseline trial to the study
+    study.add_trial(optuna.create_trial(
+        state=optuna.trial.TrialState.COMPLETE,
+        value=baseline_score,
+        params=fixed_params,
+        distributions={
+            "lr": optuna.distributions.FloatDistribution(1e-5, 1e-2, log=True),
+            "step_size": optuna.distributions.IntDistribution(5, 20, step=5),
+            "mimo_layer": optuna.distributions.IntDistribution(64, 192, step=64),
+        }
+    ))
  
     study.optimize(lambda trial: objective(trial, config), n_trials=args.trials)
 

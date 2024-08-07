@@ -82,7 +82,7 @@ def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, tr
     
 
     epoch=10
-    thresholds = [0.05, 0.1, 0.2]
+    thresholds = [0.2]
     for threshold in thresholds:
 
         eval = run_evaluation_(net, val_loader, enc, threshold, check_perf=(epoch >= 1),
@@ -110,7 +110,7 @@ def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, tr
 
         # save the score of F1, mAP, mAR
         
-        stat_file = os.path.join(base_dir, 'evaluation_scores.txt')
+        stat_file = os.path.join(base_dir, 'evaluation_scores_valshuffle.txt')
         with open(stat_file, 'a') as f:
             f.write(f"Checkpoint: {checkpoint}\n")
             f.write(f"Targets threshold: {threshold}\n")
