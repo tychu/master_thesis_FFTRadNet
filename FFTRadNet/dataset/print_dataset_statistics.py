@@ -26,7 +26,8 @@ enc = ra_encoder(geometry = geometry,
 #                        statistics=None,
 #                        encoder=enc.encode,
 #                        difficult=True)
-dataset = MATLAB(root_dir = '/imec/other/dl4ms/chu06/public/data/simulation_sequential_data_DDA_3targets_rx16_2000/', 
+dataset = MATLAB(root_dir = '/imec/other/dl4ms/chu06/public/data/', #replace with the correct directory
+                 folder_dir = "simulation_sequential_rw_data_DDA_3targets_rx2_10000_doppler32/",
                  statistics= None, 
                  encoder=enc.encode)
 
@@ -36,12 +37,13 @@ m=0
 s=0
 for i in range(len(dataset)):
     print(i,len(dataset))
-    radar_FFT, segmap,out_label,box_labels,image= dataset.__getitem__(i)
+    #radar_FFT, segmap,out_label,box_labels,image= dataset.__getitem__(i)
+    radar_FFT,out_label,box_labels= dataset.__getitem__(i)
 
     print('radar_FFT : ', radar_FFT.shape)
     
-    data = np.reshape(radar_FFT,(512*256,32))
-    #data = np.reshape(radar_FFT,(512*256,4))
+    #data = np.reshape(radar_FFT,(512*256,32))
+    data = np.reshape(radar_FFT,(512*256,4))
     
     m += data.mean(axis=0)
     s += data.std(axis=0)

@@ -67,6 +67,14 @@ $ python 3-Evaluation.py --config config/config_FFTRadNet_matlab_seq.json --chec
 ```
 path to .pth file example: FFTRadNet_matlab_Jul-05-2024_16rx_3targets_shuffle_seqdata/FFTRadNet_matlab_epoch499_loss_12.1030_AP_0.0000_AR_0.0000.pth
 
+### Hyperparameter tuning with optuna
+To do hyperparameter tuning
+```
+$ python 6-Train_optuna.py --config config/config_FFTRadNet_matlab_seq_10000_server.json --trials 60
+```
+--config: path/to/the/config/file
+--trials: indicate the number of trials you want to test 
+
 ### Additional code
 - **4-Data_checking.py :** check RadIal input files (all the input .npy files are identical)
 - **5-Model_result.py :** check model training and validation loss and plot the loss for every epoch (compute validation loss without eval() mode )
@@ -99,5 +107,11 @@ FFTRadNet is released under the [Apache 2.0 license](./LICENSE).
 #### Using sequential targets dataset
 |                Parameters             | checkpoint (file path /imec/other/dl4ms/chu06/RADIal/) |  Notes |
 |---------------------------------------|---------------|-----------------|
-| rx=16, data size=500, # targets=3     | FFTRadNet_matlab_Jul-05-2024_16rx_3targets_shuffle_seqdata/         |  Shuffle training dataset        |
-| rx=16, data size=500, # targets=3     | FFTRadNet_matlab___Jul-06-2024___08:31:59/         |    Shuffle training dataset; Limit range:0-100        |
+| rx=16, tx=12, data size=500, # targets=3     | FFTRadNet_matlab_Jul-05-2024_16rx_3targets_shuffle_seqdata/         |  Shuffle training dataset        |
+| rx=16, tx=12, data size=500, # targets=3     | FFTRadNet_matlab___Jul-06-2024___08:31:59/         |    Shuffle training dataset; Limit range:0-100        |
+
+|                Parameters             | checkpoint (file path /imec/other/dl4ms/chu06/public/model_checkpoint/) |  Notes |
+|---------------------------------------|---------------|-----------------|
+| rx=16, tx=12, data size=2000, # targets=3     | july19/         |    Shuffle training dataset;    |
+| rx=4, tx=2, data size=10000, # targets=3     | aug02-10000/         |    Remove segmentation head; Shuffle training dataset; #mimo layer=64; batch=4, 8       |
+| rx=4, tx=2, data size=10000, # targets=3     | aug05-10000/         |    Remove segmentation head; Shuffle training dataset; #mimo layer=192; batch=4, 8       |

@@ -3,6 +3,9 @@ from torch.utils.data import Dataset, DataLoader, random_split,Subset
 import numpy as np
 import torch
 
+## DDp
+from torch.utils.data.distributed import DistributedSampler
+
 Sequences = {'Validation':['RECORD@2020-11-22_12.49.56','RECORD@2020-11-22_12.11.49','RECORD@2020-11-22_12.28.47','RECORD@2020-11-21_14.25.06'],
             'Test':['RECORD@2020-11-22_12.45.05','RECORD@2020-11-22_12.25.47','RECORD@2020-11-22_12.03.47','RECORD@2020-11-22_12.54.38']}
 
@@ -13,15 +16,17 @@ def RADIal_collate(batch):
     labels = []
     encoded_label = []
 
-    for radar_FFT, segmap,out_label,box_labels,image in batch:
+    #for radar_FFT, segmap,out_label,box_labels,image in batch:
+    for radar_FFT,out_label,box_labels in batch:
 
         FFTs.append(torch.tensor(radar_FFT).permute(2,0,1))
-        segmaps.append(torch.tensor(segmap))
+        #segmaps.append(torch.tensor(segmap))
         encoded_label.append(torch.tensor(out_label))
-        images.append(torch.tensor(image))
+        #images.append(torch.tensor(image))
         labels.append(torch.from_numpy(box_labels))
         
-    return torch.stack(FFTs), torch.stack(encoded_label),torch.stack(segmaps),labels,torch.stack(images),
+    #return torch.stack(FFTs), torch.stack(encoded_label),torch.stack(segmaps),labels,torch.stack(images)
+    return torch.stack(FFTs), torch.stack(encoded_label),labels
 
 def CreateDataLoaders(dataset,batch_size,config=None,seed=0):
 
@@ -110,7 +115,7 @@ def CreateDataLoaders(dataset,batch_size,config=None,seed=0):
                                 collate_fn=RADIal_collate)
         val_loader =  DataLoader(val_dataset, 
                                 batch_size=batch_size,#config['val']['batch_size'], 
-                                shuffle=False,
+                                shuffle=True,
                                 num_workers=config['val']['num_workers'],
                                 pin_memory=True,
                                 collate_fn=RADIal_collate)

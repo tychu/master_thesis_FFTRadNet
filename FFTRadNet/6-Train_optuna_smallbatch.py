@@ -7,7 +7,7 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime
 #from torch.utils.tensorboard import SummaryWriter
-
+from model.FFTRadNet import FFTRadNet
 from dataset.dataset import RADIal
 from dataset.matlab_dataset import MATLAB
 from dataset.encoder import ra_encoder
@@ -26,7 +26,6 @@ from optuna.trial import TrialState
 import wandb
 from optuna.integration.wandb import WeightsAndBiasesCallback
 
-from model.FFTRadNet_noseg import FFTRadNet
 
 def train(config, net, train_loader, optimizer, scheduler, history, kbar):
     net.train()
@@ -41,7 +40,7 @@ def train(config, net, train_loader, optimizer, scheduler, history, kbar):
         with torch.set_grad_enabled(True):
             outputs = net(inputs)
 
-        classif_loss, reg_loss = pixor_loss(outputs, label_map, config['losses'])
+        classif_loss, reg_loss = pixor_loss(outputs['Detection'], label_map, config['losses'])
         classif_loss *= config['losses']['weight'][0]
         reg_loss *= config['losses']['weight'][1]
         loss = classif_loss + reg_loss
@@ -49,13 +48,13 @@ def train(config, net, train_loader, optimizer, scheduler, history, kbar):
         optimizer.step()
         running_loss += loss.item() * inputs.size(0)
 
-        #kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item()) ] )
+        kbar.update(i, values=[("loss", loss.item()), ("class", classif_loss.item()), ("reg", reg_loss.item()) ] )
 
     scheduler.step()
     history['train_loss'].append(running_loss / len(train_loader.dataset))
     history['lr'].append(scheduler.get_last_lr()[0])
 
-    return running_loss / len(train_loader.dataset), outputs, label_map
+    return loss, outputs['Detection'], label_map
 
     
 
@@ -79,7 +78,6 @@ def objective(trial, config):
                      statistics=config['dataset']['statistics'],
                      regression_layer=2)
     dataset = MATLAB(root_dir=config['dataset']['root_dir'],
-                     folder_dir = config['dataset']['data_folder'], 
                      statistics=config['dataset']['statistics'],
                      encoder=enc.encode)
     # Create the model
@@ -88,44 +86,41 @@ def objective(trial, config):
 
     net = FFTRadNet(
         blocks=config['model']['backbone_block'],
-        mimo_layer= mimo_layer,
-        Ntx = config['model']['NbTxAntenna'],
-        Nrx = config['model']['NbRxAntenna'],
+        mimo_layer=mimo_layer, #config['model']['MIMO_output'],
         channels=config['model']['channels'],
         regression_layer=2,
-        detection_head=config['model']['DetectionHead']
+        detection_head=config['model']['DetectionHead'],
+        segmentation_head=config['model']['SegmentationHead']
     )
     net.to('cuda')
 
     # Define hyperparameters to be tuned
     lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True) # paper set :1e-4
-    #lr = float(config['optimizer']['lr'])
-    #step_size = int(config['lr_scheduler']['step_size'])
-    step_size = trial.suggest_int('step_size', 5, 20, step=5) # paper set :10
+    step_size = trial.suggest_int('step_size', 5, 15, step=5) # paper set :10
     gamma =  float(config['lr_scheduler']['gamma']) #trial.suggest_uniform('gamma', 0.1, 0.9)
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     # Conditional parameter suggestion
-    batch_size = 4 #trial.suggest_categorical('batch_size', [4]) # for testing script on not specific GPU server 
+    batch_size =  trial.suggest_categorical('batch_size', [4, 8])
+    #batch_size = trial.suggest_categorical('batch_size', [4]) # for testing script on not specific GPU server 
     if batch_size == 4 or batch_size == 8:
         num_epochs = 100
     elif batch_size == 16 or batch_size == 32:
         num_epochs = 200
-    
 
     #num_epochs = int(config['num_epochs'])
-    threshold = 0.2 #trial.suggest_categorical('threshold', [0.2]) # paper set 0.2
-    
-    history = {'train_loss': [], 'val_loss': [], 'lr': [], 'mAP': [], 'mAR': [], 'val_f1': [], 'train_f1': []}
+
+    #freespace_loss = nn.BCEWithLogitsLoss(reduction='mean')
+    history = {'train_loss': [], 'val_loss': [], 'lr': [], 'mAP': [], 'mAR': [], 'mIoU': []}
 
     train_loader, val_loader, _ = CreateDataLoaders(dataset, batch_size, config['dataloader'], config['seed'])
-    
+
     # init tracking experiment.
     # hyper-parameters, trial id are stored.
     config_optuna = dict(trial.params)
     config_optuna["trial.number"] = trial.number
     wandb.init(
-        project=config['optuna_project'],
+        project="optuna",
         entity="chu06-imec",  # NOTE: this entity depends on your wandb account.
         config=config_optuna,
         group='FFTRadNet_optimization',
@@ -137,15 +132,10 @@ def objective(trial, config):
 
         loss,predictions, ground_truth  = train(config, net, train_loader, optimizer, scheduler, history, kbar)
 
-        
-        # tra = run_evaluation(trial, net, train_loader, enc, threshold, check_perf=(epoch >= 1),
-        #                       detection_loss=pixor_loss, segmentation_loss=None,
-        #                       losses_params=config['losses'])
-        
-        eval = run_evaluation(trial, net, val_loader, enc, threshold, check_perf=(epoch >= 1),
+        eval = run_evaluation(trial, net, val_loader, enc, check_perf=(epoch >= 10),
                               detection_loss=pixor_loss, segmentation_loss=None,
                               losses_params=config['losses'])
-        history['val_loss'].append(eval['loss']/ len(val_loader.dataset))
+        history['val_loss'].append(eval['loss'])
         history['mAP'].append(eval['mAP'])
         history['mAR'].append(eval['mAR'])
 
@@ -153,26 +143,20 @@ def objective(trial, config):
             F1_score = 0
         else:
             F1_score = (eval['mAP']*eval['mAR'])/((eval['mAP'] + eval['mAR'])/2)
-        
-        # if tra['mAP'] + tra['mAR'] == 0:
-        #     tra_F1_score = 0
-        # else:
-        #     tra_F1_score = (tra['mAP']*tra['mAR'])/((tra['mAP'] + tra['mAR'])/2)
-        
-        history['val_f1'].append(F1_score)
-        #history['train_f1'].append(tra_F1_score)
 
-        #kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR'])])
+
+        kbar.add(1, values=[("val_loss", eval['loss']),("mAP", eval['mAP']),("mAR", eval['mAR'])])
 
         # Pruning
         trial.report(F1_score, epoch)
         # report F1_score to wandb
-        wandb.log(data={#"Train F1 score": tra_F1_score,
-                        "validation F1 score": F1_score, 
-                        "validation precision":eval['mAP'], 
-                        "validation recall":eval['mAR'], 
+        wandb.log(data={"F1 score": F1_score, 
+                        "precision":eval['mAP'], 
+                        "recall":eval['mAR'], 
                         "Training loss":loss, 
-                        "Validation loss":eval['loss']/ len(val_loader.dataset),
+                        "Validation loss":eval['loss'],
+                        # "pr": wandb.plot.pr_curve(ground_truth[:, 0,:, :].detach().cpu().numpy().copy().flatten(), 
+                        #                           predictions[:, 0,:, :].detach().cpu().numpy().copy().flatten())
                                                   }, 
                         step=epoch)
 
@@ -181,7 +165,7 @@ def objective(trial, config):
             wandb.finish(quiet=True)
             raise optuna.exceptions.TrialPruned()
 
-        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_trialnumber_{:02d}_batch{:02d}_mimo{:02d}.pth'.format(epoch, loss, eval['mAP'], eval['mAR'], trial.number, batch_size, mimo_layer)
+        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_trialnumber_{:02d}.pth'.format(epoch, loss, eval['mAP'], eval['mAR'], trial.number)
         filename = output_folder / exp_name / name_output_file
 
         checkpoint={}
@@ -194,12 +178,16 @@ def objective(trial, config):
         checkpoint['lr'] = lr
         checkpoint['step_size'] = step_size
         checkpoint['history'] = history
-        checkpoint['detectionhead_output'] = predictions
 
 
         torch.save(checkpoint,filename)
             
         print('')
+        # # Early stopping
+        # if eval['mAP'] > best_mAP:
+        #     best_mAP = eval['mAP']
+        #     trial.set_user_attr('best_epoch', epoch)
+        #     trial.set_user_attr('best_model', net.state_dict())
     
     # report the final validation accuracy to wandb
     wandb.run.summary["final accuracy"] = F1_score
@@ -208,7 +196,7 @@ def objective(trial, config):
 
 
 
-    return F1_score
+    return F1_score, eval['mAP'], eval['mAR']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='FFTRadNet Training with Optuna')
@@ -221,40 +209,15 @@ if __name__ == '__main__':
     # wandb might cause an error without this.
     os.environ["WANDB_START_METHOD"] = "thread"
     
-
-
-    # Specific parameter combination for the first trial
-    fixed_params = {
-        "lr": 1e-4,
-        "step_size": 10,
-        "mimo_layer": 192,
-    }
-
-    # Create a FixedTrial object
-    fixed_trial = optuna.trial.FixedTrial(fixed_params)
-
-    # Evaluate the objective function with the fixed parameters
-    baseline_score = objective(fixed_trial, config)
-
-    # Create a study
     # optuna without parallel
-    study = optuna.create_study(direction='maximize', study_name='FFTRadNet_optimization', 
-                                pruner=optuna.pruners.PercentilePruner(50.0, n_startup_trials=5,
-                                           n_warmup_steps=30, interval_steps=10))
-    
-    #study = optuna.create_study(direction='maximize')
+    study = optuna.create_study(direction='maximize', study_name='FFTRadNet_optimization', pruner=optuna.pruners.MedianPruner())
 
-    # Add the baseline trial to the study
-    study.add_trial(optuna.create_trial(
-        state=optuna.trial.TrialState.COMPLETE,
-        value=baseline_score,
-        params=fixed_params,
-        distributions={
-            "lr": optuna.distributions.FloatDistribution(1e-5, 1e-2, log=True),
-            "step_size": optuna.distributions.IntDistribution(5, 20, step=5),
-            "mimo_layer": optuna.distributions.IntDistribution(64, 192, step=64),
-        }
-    ))
+    ## parallel optuna trial 
+    # first command in terminal to initializing the study:
+    # optuna create-study --study-name FFTRadNet_optimization --storage sqlite:///FFTRadNet_optimization_study.db
+    # study = optuna.load_study(
+    #     study_name="FFTRadNet_optimization", storage="sqlite:///FFTRadNet_optimization_study.db"
+    # )
  
     study.optimize(lambda trial: objective(trial, config), n_trials=args.trials)
 
