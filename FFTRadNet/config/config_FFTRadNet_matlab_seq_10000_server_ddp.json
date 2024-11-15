@@ -58,6 +58,6 @@
         }
     },
     "output": {
-	"dir": "/imec/other/dl4ms/chu06/public/model_checkpoint/"
+	"dir": "/imec/other/dl4ms/chu06/public/model_checkpoint/FFTRadNet_ddp/"
     }
 }

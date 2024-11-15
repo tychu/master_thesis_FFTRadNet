@@ -1,0 +1,139 @@
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch40_loss_29.1011_AP_0.8064_AR_0.5052_trialnumber_01_batch04_mimo64.pth
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.8034805890227577, recall: 0.5043697478991597, F1 Score: 0.6197212183789366
+train
+precision: 0.8231944084908103, recall: 0.5428844577984158, F1 Score: 0.6542805999629653
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch40_loss_43.1245_AP_0.2916_AR_0.4975_trialnumber_00_batch04_mimo64.pth
+Batch size: 8, MIMO layer: 64
+validation
+precision: 0.2911556486190049, recall: 0.49634540200577937, F1 Score: 0.36701860231272
+train
+precision: 0.31026757407955363, recall: 0.5191314803027088, F1 Score: 0.38840088898296116
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch80_loss_14.9533_AP_0.8559_AR_0.5296_trialnumber_01_batch04_mimo64.pth
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.855098855359001, recall: 0.5290519877675841, F1 Score: 0.6536740578701402
+train
+precision: 0.8807159012685614, recall: 0.5735694386627814, F1 Score: 0.6947078557992515
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch80_loss_20.5898_AP_0.3411_AR_0.4743_trialnumber_00_batch04_mimo64.pth
+Batch size: 8, MIMO layer: 64
+validation
+precision: 0.3406273716164938, recall: 0.4746210786041593, F1 Score: 0.39661266568483056
+train
+precision: 0.4089952866615184, recall: 0.530810437186798, F1 Score: 0.4620081819275659
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch20_loss_52.4196_AP_0.5002_AR_0.5092_trialnumber_01_batch04_mimo64.pth
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.5002452984464432, recall: 0.5092392209089396, F1 Score: 0.5047021943573669
+train
+precision: 0.4997129003445196, recall: 0.5383161512027491, F1 Score: 0.5182967178401271
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch20_loss_72.4721_AP_0.2693_AR_0.5326_trialnumber_00_batch04_mimo64.pth
+Batch size: 8, MIMO layer: 64
+validation
+precision: 0.2692929946610581, recall: 0.53264, F1 Score: 0.3577261981517301
+train
+precision: 0.2517223885970511, recall: 0.5313115263721461, F1 Score: 0.3416020786604188
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch40_loss_29.1011_AP_0.8064_AR_0.5052_trialnumber_01_batch04_mimo64.pth
+Targets threshold: 0.05
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.2620955548835803, recall: 0.5426514321490061, F1 Score: 0.35346893000968543
+train
+precision: 0.2874338219912138, recall: 0.5726101173302558, F1 Score: 0.38274210656009944
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch40_loss_29.1011_AP_0.8064_AR_0.5052_trialnumber_01_batch04_mimo64.pth
+Targets threshold: 0.1
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.592141167909769, recall: 0.5266138165345413, F1 Score: 0.5574584689159103
+train
+precision: 0.6236219315008085, recall: 0.5596227410631843, F1 Score: 0.5898915461624028
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch40_loss_29.1011_AP_0.8064_AR_0.5052_trialnumber_01_batch04_mimo64.pth
+Targets threshold: 0.2
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.8063824081523197, recall: 0.5052083333333334, F1 Score: 0.6212168164445822
+train
+precision: 0.8255566512690092, recall: 0.5429966203529853, F1 Score: 0.6551070840197694
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch40_loss_43.1245_AP_0.2916_AR_0.4975_trialnumber_00_batch04_mimo64.pth
+Targets threshold: 0.05
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.08400525457510419, recall: 0.5600181186773365, F1 Score: 0.1460955194485475
+train
+precision: 0.08684806231899334, recall: 0.5635605641142559, F1 Score: 0.15050274859091223
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch40_loss_43.1245_AP_0.2916_AR_0.4975_trialnumber_00_batch04_mimo64.pth
+Targets threshold: 0.1
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.18818392837404666, recall: 0.5379146919431279, F1 Score: 0.27882410743530955
+train
+precision: 0.1926719692749019, recall: 0.5467204843592331, F1 Score: 0.2849304502546213
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch40_loss_43.1245_AP_0.2916_AR_0.4975_trialnumber_00_batch04_mimo64.pth
+Targets threshold: 0.2
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.29162111122154855, recall: 0.4975411226047143, F1 Score: 0.36771525253791204
+train
+precision: 0.3095825167014394, recall: 0.5192096985119994, F1 Score: 0.38788550908322766
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch80_loss_14.9533_AP_0.8559_AR_0.5296_trialnumber_01_batch04_mimo64.pth
+Targets threshold: 0.05
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.4829568788501027, recall: 0.5474010861132661, F1 Score: 0.5131636363636364
+train
+precision: 0.5154925701706109, recall: 0.5847119046132717, F1 Score: 0.5479247711252158
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch80_loss_14.9533_AP_0.8559_AR_0.5296_trialnumber_01_batch04_mimo64.pth
+Targets threshold: 0.1
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.7335342229875161, recall: 0.5388142292490119, F1 Score: 0.6212742685261143
+train
+precision: 0.77966750287002, recall: 0.5794413195980535, F1 Score: 0.6648055832502492
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___19:29:31/FFTRadNet_matlab_epoch80_loss_14.9533_AP_0.8559_AR_0.5296_trialnumber_01_batch04_mimo64.pth
+Targets threshold: 0.2
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.8559167750325097, recall: 0.5296105568072095, F1 Score: 0.6543393975544288
+train
+precision: 0.8819676974591294, recall: 0.5735374171443209, F1 Score: 0.6950734423812018
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch80_loss_20.5898_AP_0.3411_AR_0.4743_trialnumber_00_batch04_mimo64.pth
+Targets threshold: 0.05
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.15781118221957632, recall: 0.5201111837802486, F1 Score: 0.24214973546987398
+train
+precision: 0.18366656111117177, recall: 0.555757475631918, F1 Score: 0.2760907389777092
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch80_loss_20.5898_AP_0.3411_AR_0.4743_trialnumber_00_batch04_mimo64.pth
+Targets threshold: 0.1
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.26431323358122033, recall: 0.49915397631133673, F1 Score: 0.3456153710971824
+train
+precision: 0.31342036756420716, recall: 0.5444819439757003, F1 Score: 0.3978348786742948
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/aug02-10000/FFTRadNet_matlab___Aug-02-2024___15:56:58/FFTRadNet_matlab_epoch80_loss_20.5898_AP_0.3411_AR_0.4743_trialnumber_00_batch04_mimo64.pth
+Targets threshold: 0.2
+Batch size: 4, MIMO layer: 64
+validation
+precision: 0.34110196326789105, recall: 0.47428672067629446, F1 Score: 0.39681721063876807
+train
+precision: 0.4087482351687578, recall: 0.530640475861115, F1 Score: 0.46178617109322095
+

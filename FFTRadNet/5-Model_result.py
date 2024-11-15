@@ -7,7 +7,7 @@ import numpy as np
 import random
 import json
 import argparse
-from model.FFTRadNet_ddp import FFTRadNet
+from model.FFTRadNet_noseg import FFTRadNet
 from dataset.encoder import ra_encoder
 from dataset.dataloader import CreateDataLoaders
 
@@ -17,7 +17,7 @@ from utils.evaluation import run_evaluation
 
 import matplotlib.pyplot as plt
 
-from utils.plots import plot_histograms, create_video_from_images
+from utils.plots import plot_histograms#, create_video_from_images
 
 
 import os
@@ -137,6 +137,7 @@ class MainProcess:
     def create_histograms(self, net, dataset, epoch, batch_size):
         all_outputs = []
         for i, data in enumerate(dataset):
+            print("read input")
             inputs = data[0].to('cuda').float()
             with torch.set_grad_enabled(False):
                 outputs = net(inputs)
@@ -146,6 +147,7 @@ class MainProcess:
         all_outputs = np.concatenate(all_outputs, axis=0)
         # Plot histogram for the entire dataset
         save_path = os.path.join(self.save_plot_path, self.plot_file)
+        print("saving all output to", )
         plot_histograms(all_outputs, epoch, self.histogram, batch_size, self.save_plot_path)
 
     #def calculate_validation_loss(self, net, enc, val_loader):
@@ -156,9 +158,9 @@ class MainProcess:
     #        for epoch, loss in epoch_losses_val.items():
     #            f.write(f'Epoch {epoch}: {loss}\n')
 
-    def create_video_if_histogram(self):
-        if self.histogram:
-            create_video_from_images(self.save_plot_path, fps=2)
+    # def create_video_if_histogram(self):
+    #     if self.histogram:
+    #         create_video_from_images(self.save_plot_path, fps=2)
     
     def get_latest_checkpoint(self):
         checkpoint_files = [f for f in os.listdir(self.checkpoint_dir) if f.endswith('.pth')]
@@ -189,7 +191,7 @@ class MainProcess:
             checkpoint_files = sorted([f for f in os.listdir(self.checkpoint_dir) if f.endswith('.pth')])
             for checkpoint_file in checkpoint_files:
                 epoch, mimo = self.extract_params_from_filename(checkpoint_file)
-                print("mimo: ", mimo)
+                #print("mimo: ", mimo)
 
                 net = self.load_model(mimo)
                 
@@ -211,7 +213,7 @@ class MainProcess:
                         if self.histogram:
                             dataset = train_loader if self.histogram == "train" else val_loader
                             self.create_histograms(net, dataset, epoch, batch_size)
-            self.create_video_if_histogram()
+            #self.create_video_if_histogram()
 
         if self.lossplot:
             last_checkpoint = self.get_latest_checkpoint()

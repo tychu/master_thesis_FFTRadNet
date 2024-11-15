@@ -73,12 +73,11 @@ def find_free_port():
         print(f"Failed to find a free port: {e}")
         raise
 
-def ddp_setup(rank, world_size, barrier):
+def ddp_setup(rank, world_size):
     """
     Args:
         rank: Unique identifier of each process
         world_size: Total number of processes
-        barrier: Barrier to synchronize processes
     """
     try:
         master_addr = get_master_addr()
@@ -317,11 +316,13 @@ def objective(single_trial, config, rank,world_size):
     # Set up the config as per trial parameters
     optuna_config = {
         "optimizer": {
-            "lr": trial.suggest_float("lr", 1e-5, 1e-3, log=True), # original: 1-e4
-            "step_size": trial.suggest_int('step_size', 5, 20, step=5) # original: 10
+            "lr": trial.suggest_float("lr", 1e-4, 1e-4, log=True), # original: 1-e4
+            'step_size': trial.suggest_categorical('step_size', [10]),
+            #"step_size": trial.suggest_int('step_size', 5, 20, step=5) # original: 10
         },
         "model": {
-            "mimo_layer": trial.suggest_int('mimo_layer', 64, 192, step=64) # original: 192
+            #"mimo_layer": trial.suggest_int('mimo_layer', 64, 192, step=64) # original: 192
+            "mimo_layer": trial.suggest_categorical('mimo_layer', [192]) # original: 192
         },
         #"batch_size": trial.suggest_categorical('batch_size', [32]), # original: 4
         #"threshold":  trial.suggest_float("FFT_confidence_threshold", 0.1, 0.2, step=0.05) # original: 0.2
@@ -337,7 +338,7 @@ def objective(single_trial, config, rank,world_size):
     trainer = Trainer(model, train_data, val_data, optimizer, rank, config['save_every'], config, optuna_config, scheduler, encoder)
 
     # set epoch
-    num_epochs = 100
+    num_epochs = 5 #100
     # if optuna_config['batch_size'] == 4 or optuna_config['batch_size'] == 8:
     #     num_epochs = 100
     # elif optuna_config['batch_size'] == 16 or optuna_config['batch_size'] == 32:
@@ -406,8 +407,9 @@ def objective(single_trial, config, rank,world_size):
                             step=epoch)
 
         if trial.should_prune():
-            wandb.run.summary["state"] = "pruned"
-            wandb.finish(quiet=True)
+            if rank == 0:
+                wandb.run.summary["state"] = "pruned"
+                wandb.finish(quiet=True)
             raise optuna.exceptions.TrialPruned(f"Trial was pruned at epoch {epoch}.")
         
         name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_trialnumber_{:02d}_batch{:02d}_mimo{:02d}.pth'.format(epoch
@@ -432,10 +434,11 @@ def objective(single_trial, config, rank,world_size):
         torch.save(checkpoint,filename)
         print("checkpoint filename: ", filename)
    
-    # report the final validation accuracy to wandb
-    wandb.run.summary["final accuracy"] = F1_score
-    wandb.run.summary["state"] = "completed"
-    wandb.finish(quiet=True)
+    if rank == 0:
+        # report the final validation accuracy to wandb
+        wandb.run.summary["final accuracy"] = F1_score
+        wandb.run.summary["state"] = "completed"
+        wandb.finish(quiet=True)
     #destroy_process_group()
 
     return F1_score  # Replace with the metric you are optimizing
@@ -446,10 +449,11 @@ def run_optimize(rank, world_size, return_dict, N_trials, config):
     print(f"Running basic DDP example on rank {rank}")
     print(f"number of trial {N_trials}")
 
-    barrier = Barrier(world_size)
-    ddp_setup(rank, world_size, barrier)
+    ddp_setup(rank, world_size)
 
     device = torch.device(f"cuda:{rank}")
+
+    start_time = time.time()
 
     if rank == 0:
         study = optuna.create_study(direction="maximize", study_name='FFTRadNet_optimization', 
@@ -468,6 +472,8 @@ def run_optimize(rank, world_size, return_dict, N_trials, config):
             except optuna.TrialPruned:
                 pass
 
+    multi_gpu_time = time.time() - start_time
+    print(f"2 GPU training time: {multi_gpu_time:.2f} seconds\n")
     destroy_process_group()
 
 if __name__ == "__main__":

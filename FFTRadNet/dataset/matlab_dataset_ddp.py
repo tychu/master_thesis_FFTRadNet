@@ -8,6 +8,9 @@ import pandas as pd
 from PIL import Image
 import scipy.io as sio
 
+from utils.plots import count_targets
+import sys
+
 class MATLAB(Dataset):
 
     def __init__(self, root_dir,folder_dir, statistics=None,encoder=None,difficult=False):
@@ -26,7 +29,7 @@ class MATLAB(Dataset):
         self.mat_files = [f for f in os.listdir(os.path.join(self.root_dir, self.folder_dir, 'RD_cube/')) if f.endswith('.mat')]
         
         self.csv_files = [f for f in os.listdir(os.path.join(self.root_dir, self.folder_dir, 'ground_truth/')) if f.endswith('.csv')]
-        self.image_files = [f for f in os.listdir(os.path.join(self.root_dir, 'camera/')) if f.endswith('.jpg')]
+        #self.image_files = [f for f in os.listdir(os.path.join(self.root_dir, 'camera/')) if f.endswith('.jpg')]
         
        
         # Keeps only easy samples
@@ -96,20 +99,33 @@ class MATLAB(Dataset):
         #print("csv file indx :", csv_file)
         #csv_file = os.path.join(self.root_dir, 'ground_truth/', self.csv_files[idx])
         box_labels = pd.read_csv(csv_file).to_numpy()
-        #print(box_labels.shape)
+        #print("box_labels: ", box_labels.shape) # (3, 3)
+        #print(box_labels)
 
         
         out_label=[]
         if(self.encoder!=None):
             out_label = self.encoder(box_labels).copy()
-        #out_label = box_labels      
-
+        #print("out_label: ", out_label.shape) # (3, 128, 224)
+        #out_label = box_labels
+        #         # # Count the number of 1s in map[0, :, :]
+        #count_ones = np.sum(out_label[0, :, :] == 1)
+          
+        # if count_ones < 27:
+        #     print("number of targets: ", count_ones)    
+        #     print("out_label: ", out_label.shape)
+        #     print("box_labels: ", box_labels[:, 0], "col1: ",box_labels[:, 1], "col2: ", box_labels[:, 2])
+        
+        # Stop the script
+        #sys.exit("Stopping the script")   
+        
         # Read the Radar FFT data
         #radar_name = os.path.join(self.root_dir,'radar_FFT',"fft_{:06d}.npy".format(sample_id))
         mat_file = os.path.join(self.root_dir, self.folder_dir, 'RD_cube/',f"RD_cube_{idx_adj}.mat")
         #print("mat file indx :", mat_file)
         #mat_file = os.path.join(self.root_dir, 'RD_cube/', self.mat_files[idx])
         mat_input_4d = sio.loadmat(mat_file)['radar_data_cube_4d']
+ 
         mat_input_3d = mat_input_4d[:, :, 0, :]
 
         # #### re-arrange the RD spectrum, one RD specturm per Rx

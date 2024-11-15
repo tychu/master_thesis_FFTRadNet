@@ -1,7 +1,7 @@
 {
     "name": "FFTRadNet_matlab",
     "seed":3,
-    "optuna_project": "optuna-10000",
+    "optuna_project": "optuna-10000-correctmetric",
     "model": {
         "backbone_block": [3, 6, 6, 3],
         "channels": [32,40,48,56],
@@ -57,6 +57,6 @@
         }
     },
     "output": {
-	"dir": "/imec/other/dl4ms/chu06/public/model_checkpoint/"
+	"dir": "/imec/other/dl4ms/chu06/public/model_checkpoint/FFTRadNet_10000_correctmetric/"
     }
 }

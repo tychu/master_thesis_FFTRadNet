@@ -7,7 +7,7 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime
 #from torch.utils.tensorboard import SummaryWriter
-from model.FFTRadNet import FFTRadNet
+
 from dataset.dataset import RADIal
 from dataset.matlab_dataset import MATLAB
 from dataset.encoder import ra_encoder
@@ -26,6 +26,7 @@ from optuna.trial import TrialState
 import wandb
 from optuna.integration.wandb import WeightsAndBiasesCallback
 
+from model.FFTRadNet_ddp import FFTRadNet
 
 def train(config, net, train_loader, optimizer, scheduler, history, kbar):
     net.train()
@@ -82,11 +83,13 @@ def objective(trial, config):
                      encoder=enc.encode)
     # Create the model
     # Suggest value for mimo_layer
-    mimo_layer = trial.suggest_int('mimo_layer', 64, 192, step=64)
+    mimo_layer = 192 #trial.suggest_int('mimo_layer', 64, 192, step=64)
 
     net = FFTRadNet(
         blocks=config['model']['backbone_block'],
         mimo_layer=mimo_layer, #config['model']['MIMO_output'],
+        Ntx = config['model']['NbTxAntenna'],
+        Nrx = config['model']['NbRxAntenna'],
         channels=config['model']['channels'],
         regression_layer=2,
         detection_head=config['model']['DetectionHead'],
@@ -155,8 +158,6 @@ def objective(trial, config):
                         "recall":eval['mAR'], 
                         "Training loss":loss, 
                         "Validation loss":eval['loss'],
-                        # "pr": wandb.plot.pr_curve(ground_truth[:, 0,:, :].detach().cpu().numpy().copy().flatten(), 
-                        #                           predictions[:, 0,:, :].detach().cpu().numpy().copy().flatten())
                                                   }, 
                         step=epoch)
 

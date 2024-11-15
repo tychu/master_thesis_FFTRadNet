@@ -1,4 +1,6 @@
 import numpy as np
+
+import sys
         
 class ra_encoder():
     def __init__(self, geometry, statistics,regression_layer = 2):
@@ -13,22 +15,21 @@ class ra_encoder():
     def encode(self,labels):
         map = np.zeros(self.OUTPUT_DIM )
 
+
         for lab in labels:
             # [Range, Angle, Doppler,laser_X_m,laser_Y_m,laser_Z_m,x1_pix,y1_pix,x2_pix	,y2_pix]
 
             if(lab[0]==-1):
                 continue
 
+            
             #range_bin = int(np.clip(lab[0]/self.geometry['resolution'][0]/4,0,self.OUTPUT_DIM[1]))
             range_bin = int(np.clip(lab[0]/self.geometry['resolution'][0]/4,0,self.OUTPUT_DIM[1]-1))
             range_mod = lab[0] - range_bin*self.geometry['resolution'][0]*4
-
-            # ANgle and deg
+            # ANgle and deg    
             #angle_bin = int(np.clip(np.floor(lab[1]/self.geometry['resolution'][1]/4 + self.OUTPUT_DIM[2]/2),0,self.OUTPUT_DIM[2]))
             angle_bin = int(np.clip(np.floor(lab[1]/self.geometry['resolution'][1]/4 + self.OUTPUT_DIM[2]/2),0,self.OUTPUT_DIM[2]-1))
             angle_mod = lab[1] - (angle_bin- self.OUTPUT_DIM[2]/2)*self.geometry['resolution'][1]*4 
-
-            
 
             
             if(self.geometry['size']==1):
@@ -37,14 +38,18 @@ class ra_encoder():
                 map[1,range_bin,angle_bin] = (range_mod - self.statistics['reg_mean'][0]) / self.statistics['reg_std'][0]
                 map[2,range_bin,angle_bin] = (angle_mod - self.statistics['reg_mean'][1]) / self.statistics['reg_std'][1]
             else:
+                #print("in self.geometry['size'] != 1")
 
                 s = int((self.geometry['size']-1)/2) #size=3 (3-1)/2=1
+                #print("s: ", s)
                 r_lin = np.linspace(self.geometry['resolution'][0]*s, -self.geometry['resolution'][0]*s,
                                     self.geometry['size'])*4
                 a_lin = np.linspace(self.geometry['resolution'][1]*s, -self.geometry['resolution'][1]*s,
                                     self.geometry['size'])*4
+                #print("r_lin: ", r_lin, "a_lin: ", a_lin)
                 # np.linspace(): generate array evenly spaced number over a specified interval
                 px_a, px_r = np.meshgrid(a_lin, r_lin)
+                #print("px_a: ", px_a, "px_r: ", px_r)
 
                 # # Define the range and angle bin limits
                 # range_start = range_bin - s
@@ -60,8 +65,11 @@ class ra_encoder():
                 range_end = min(range_bin + s + 1, self.OUTPUT_DIM[1])
                 angle_start = max(angle_bin - s, 0)
                 angle_end = min(angle_bin + s + 1, self.OUTPUT_DIM[2])
+                #print("range_start: ", range_start, "range_end: ", range_end)
+                #print("angle_start: ", angle_start, "angle_end: ", angle_end)
 
                 # Handle all cases for angle_bin and range_bin
+                # originally paper only cover the angle exception
                 if angle_bin >= s and angle_bin < (self.OUTPUT_DIM[2] - s) and range_bin >= s and range_bin < (self.OUTPUT_DIM[1] - s):
                     map[0, range_start:range_end, angle_start:angle_end] = 1
                     map[1, range_start:range_end, angle_start:angle_end] = ((px_r + range_mod) - self.statistics['reg_mean'][0]) / self.statistics['reg_std'][0]
@@ -114,6 +122,15 @@ class ra_encoder():
                     map[1, 0:range_slice, angle_start:] = ((px_r_slice + range_mod) - self.statistics['reg_mean'][0]) / self.statistics['reg_std'][0]
                     map[2, 0:range_slice, angle_start:] = ((px_a_slice + angle_mod) - self.statistics['reg_mean'][1]) / self.statistics['reg_std'][1]
 
+                elif angle_bin >= s and range_bin >= (self.OUTPUT_DIM[1] - s):
+                    end_range = s + (self.OUTPUT_DIM[1] - range_bin)
+                    px_r_slice = px_r[:end_range, :]
+                    px_a_slice = px_a[:end_range, :]
+    
+                    map[0, range_start:, angle_start:angle_end] = 1
+                    map[1, range_start:, angle_start:angle_end] = ((px_r_slice + range_mod) - self.statistics['reg_mean'][0]) / self.statistics['reg_std'][0]
+                    map[2, range_start:, angle_start:angle_end] = ((px_a_slice + angle_mod) - self.statistics['reg_mean'][1]) / self.statistics['reg_std'][1]
+
                 elif angle_bin < s and range_bin >= (self.OUTPUT_DIM[1] - s):
                     angle_slice = angle_bin + s + 1
                     end = s + (self.OUTPUT_DIM[1] - range_bin)
@@ -133,10 +150,13 @@ class ra_encoder():
                     map[0, range_start:, angle_start:] = 1
                     map[1, range_start:, angle_start:] = ((px_r_slice + range_mod) - self.statistics['reg_mean'][0]) / self.statistics['reg_std'][0]
                     map[2, range_start:, angle_start:] = ((px_a_slice + angle_mod) - self.statistics['reg_mean'][1]) / self.statistics['reg_std'][1]
+                else:
+                    print("none of above fits")
+                    # Stop the script
+                    sys.exit("Stopping the script")  
 
 
                 # if(angle_bin>=s and angle_bin<(self.OUTPUT_DIM[2]-s)):
-
                 #     map[0,range_bin-s:range_bin+(s+1),angle_bin-s:angle_bin+(s+1)] = 1
                 #     map[1,range_bin-s:range_bin+(s+1),angle_bin-s:angle_bin+(s+1)] = ((px_r+range_mod) - self.statistics['reg_mean'][0]) / self.statistics['reg_std'][0]
                 #     map[2,range_bin-s:range_bin+(s+1),angle_bin-s:angle_bin+(s+1)] = ((px_a + angle_mod) - self.statistics['reg_mean'][1]) / self.statistics['reg_std'][1] 
@@ -150,6 +170,13 @@ class ra_encoder():
                 #     map[0,range_bin-s:range_bin+(s+1),angle_bin-s:] = 1
                 #     map[1,range_bin-s:range_bin+(s+1),angle_bin-s:] = ((px_r[:,:end] + range_mod) - self.statistics['reg_mean'][0]) / self.statistics['reg_std'][0]
                 #     map[2,range_bin-s:range_bin+(s+1),angle_bin-s:] = ((px_a[:,:end] + angle_mod)- self.statistics['reg_mean'][1]) / self.statistics['reg_std'][1]
+
+            
+        # # Count the number of 1s in map[0, :, :]
+        #count_ones = np.sum(map[0, :, :] == 1)
+        #print("number of targets: ", count_ones)
+        # # Stop the script
+        # sys.exit("Stopping the script")  
 
         return map
         

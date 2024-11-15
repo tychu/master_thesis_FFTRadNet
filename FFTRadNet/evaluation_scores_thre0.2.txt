@@ -1,0 +1,14 @@
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/july31/FFTRadNet_matlab___Jul-31-2024___20:30:14/FFTRadNet_matlab_epoch99_loss_14.9809_AP_0.0258_AR_0.0391_trialnumber_01_batch04_mimo192.pth
+Batch size: 4, MIMO layer: 192
+validation
+mAP: 0, mAR: 0, F1 Score: 0
+train
+mAP: 0, mAR: 0, F1 Score: 0
+
+Checkpoint: /imec/other/dl4ms/chu06/public/model_checkpoint/july31/FFTRadNet_matlab___Jul-31-2024___16:47:06/FFTRadNet_matlab_epoch99_loss_32.5183_AP_0.0197_AR_0.0345_trialnumber_00_batch08_mimo192.pth
+Batch size: 8, MIMO layer: 192
+validation
+mAP: 0, mAR: 0, F1 Score: 0
+train
+mAP: 0, mAR: 0, F1 Score: 0
+

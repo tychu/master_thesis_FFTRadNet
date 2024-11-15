@@ -15,7 +15,7 @@ def conv3x3(in_planes, out_planes, stride=1, bias=False):
 
 class Detection_Header(nn.Module):
 
-    def __init__(self, use_bn=True,reg_layer=2,input_angle_size=0):
+    def __init__(self, use_bn=True,reg_layer=2,input_angle_size=0, num_layers=4):
         super(Detection_Header, self).__init__()
 
         self.use_bn = use_bn
@@ -23,12 +23,17 @@ class Detection_Header(nn.Module):
         self.input_angle_size = input_angle_size
         self.target_angle = 224
         bias = not use_bn
+        self.num_layers = num_layers
 
         if(self.input_angle_size==224):
-            self.conv1 = conv3x3(256, 144, bias=bias)
-            self.bn1 = nn.BatchNorm2d(144)
-            self.conv2 = conv3x3(144, 96, bias=bias)
-            self.bn2 = nn.BatchNorm2d(96)
+            if self.num_layers == 1:
+                self.conv1 = conv3x3(256, 96, bias=bias)
+                self.bn1 = nn.BatchNorm2d(96)
+            if self.num_layers >= 2:
+                self.conv1 = conv3x3(256, 144, bias=bias)
+                self.bn1 = nn.BatchNorm2d(144)
+                self.conv2 = conv3x3(144, 96, bias=bias)
+                self.bn2 = nn.BatchNorm2d(96)
         elif(self.input_angle_size==448):
             self.conv1 = conv3x3(256, 144, bias=bias,stride=(1,2))
             self.bn1 = nn.BatchNorm2d(144)
@@ -56,15 +61,19 @@ class Detection_Header(nn.Module):
         x = self.conv1(x)
         if self.use_bn:
             x = self.bn1(x)
-        x = self.conv2(x)
-        if self.use_bn:
-            x = self.bn2(x)
-        x = self.conv3(x)
-        if self.use_bn:
-            x = self.bn3(x)
-        x = self.conv4(x)
-        if self.use_bn:
-            x = self.bn4(x)
+        if self.num_layers >= 2:
+            x = self.conv2(x)
+            if self.use_bn:
+                x = self.bn2(x)
+        if self.num_layers >= 3:
+            x = self.conv3(x)
+            if self.use_bn:
+                x = self.bn3(x)
+        # adjust detection head # of layer
+        if self.num_layers == 4:
+            x = self.conv4(x)
+            if self.use_bn:
+                x = self.bn4(x)
 
         cls = torch.sigmoid(self.clshead(x))
         reg = self.reghead(x)
@@ -229,22 +238,32 @@ class RangeAngle_Decoder(nn.Module):
         
         self.conv_block4 = BasicBlock(48,128)
         self.deconv3 = nn.ConvTranspose2d(128, 128, kernel_size=3, stride=(2,1), padding=1, output_padding=(1,0))
-        self.conv_block3 = BasicBlock(192,256)
+        self.conv_block3 = BasicBlock(192,256) # BasicBlock(192,256)
 
-        self.L3  = nn.Conv2d(192, 224, kernel_size=1, stride=1,padding=0)
-        self.L2  = nn.Conv2d(160, 224, kernel_size=1, stride=1,padding=0)
+        self.L3  = nn.Conv2d(36*4, 224, kernel_size=1, stride=1,padding=0) # nn.Conv2d(192=48(channels[2])*4, 224, kernel_size=1, stride=1,padding=0)
+        self.L2  = nn.Conv2d(28*4, 224, kernel_size=1, stride=1,padding=0) # nn.Conv2d(160=40(channels[1])*4, 224, kernel_size=1, stride=1,padding=0)
         
         
     def forward(self,features):
 
         T4 = features['x4'].transpose(1, 3) 
-        T3 = self.L3(features['x3']).transpose(1, 3)
-        T2 = self.L2(features['x2']).transpose(1, 3)
+        #print("features['x4']: ", features['x4'].shape) #features['x4']:  torch.Size([4, 224, 32, 16])
+        #print("features['x2']: ", features['x2'].shape)
+        #print("T4: ", T4.shape) #T4:  torch.Size([4, 16, 32, 224])
+        T3 = self.L3(features['x3']).transpose(1, 3) #features['x3']: [4, 144, 64, 32]
+        #print("T3 :", T3.shape) #torch.Size([4, 32, 64, 224])
 
+        T2 = self.L2(features['x2']).transpose(1, 3)
+        #print("T2 :", T2.shape) #torch.Size([4, 64, 128, 224])
+
+        #print("self.deconv4(T4): ", self.deconv4(T4).shape) #self.deconv4(T4):  torch.Size([4, 16, 64, 224])
         S4 = torch.cat((self.deconv4(T4),T3),axis=1)
-        S4 = self.conv_block4(S4)
+        #print("S4: ", S4.shape) # torch.Size([4, 48, 64, 224])
+        S4 = self.conv_block4(S4) #[4, 192, 128, 224]
+        #print("S4: self.conv_block4(S4)", S4.shape) #torch.Size([4, 128, 64, 224])
         
-        S43 = torch.cat((self.deconv3(S4),T2),axis=1)
+        S43 = torch.cat((self.deconv3(S4),T2),axis=1) 
+        #print("S43: ", S43.shape) # torch.Size([4, 192, 128, 224])
         out = self.conv_block3(S43)
         
         return out
@@ -252,7 +271,7 @@ class RangeAngle_Decoder(nn.Module):
 
 class FFTRadNet(nn.Module):
     #def __init__(self,mimo_layer,channels,blocks,regression_layer = 2, detection_head=True,segmentation_head=True):
-    def __init__(self,mimo_layer,Ntx, Nrx, channels,blocks,regression_layer = 2, detection_head=True):
+    def __init__(self,mimo_layer,Ntx, Nrx, channels,blocks,regression_layer = 2, DH_num_layers=4, detection_head=True):
         super(FFTRadNet, self).__init__()
     
         self.detection_head = detection_head
@@ -262,7 +281,7 @@ class FFTRadNet(nn.Module):
         self.RA_decoder = RangeAngle_Decoder()
         
         if(self.detection_head):
-            self.detection_header = Detection_Header(input_angle_size=channels[3]*4,reg_layer=regression_layer)
+            self.detection_header = Detection_Header(input_angle_size=channels[3]*4,reg_layer=regression_layer, num_layers=DH_num_layers)
 
         # if(self.segmentation_head):
         #     self.freespace = nn.Sequential(BasicBlock(256,128),BasicBlock(128,64),nn.Conv2d(64, 1, kernel_size=1))

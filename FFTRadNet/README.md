@@ -134,3 +134,7 @@ FFTRadNet is released under the [Apache 2.0 license](./LICENSE).
 | rx=16, tx=12, data size=2000, # targets=3     | july19/         |    Shuffle training dataset;    |
 | rx=4, tx=2, data size=10000, # targets=3     | aug02-10000/         |    Remove segmentation head; Shuffle training dataset; #mimo layer=64; batch=4, 8       |
 | rx=4, tx=2, data size=10000, # targets=3     | aug05-10000/         |    Remove segmentation head; Shuffle training dataset; #mimo layer=192; batch=4, 8       |
+| rx=4, tx=2, data size=10000, # targets=3     | FFTRadNet/         |    Remove segmentation head; Shuffle training dataset; optuna tuning mimo layer /learning rate/step size(learning rate scheduler); batch=4       |
+| rx=4, tx=2, data size=10000, # targets=3     | FFTRadNet_10000_change_model/FFTRadNet_matlab___Aug-14-2024___13:28:17         |    Remove segmentation head; Shuffle training dataset; #mimo layer=128; batch=4; reduce FPN number of channels       |
+| rx=4, tx=2, data size=10000, # targets=3     | FFTRadNet_10000_change_model/FFTRadNet_matlab___Aug-14-2024___13:36:38         |    Remove segmentation head; Shuffle training dataset; #mimo layer=128; batch=4; reduce FPN number of layers       |
+| rx=4, tx=2, data size=10000, # targets=3     | FFTRadNet_10000_change_model/FFTRadNet_matlab___Aug-14-2024___13:42:31         |    Remove segmentation head; Shuffle training dataset; #mimo layer=128; batch=4; reduce detection head's layers       |

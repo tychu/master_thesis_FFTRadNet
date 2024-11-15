@@ -1,0 +1,62 @@
+{
+    "name": "FFTRadNet_matlab",
+    "seed":3,
+    "optuna_project": "optuna-10000-change-model",
+    "model": {
+        "backbone_block": [2, 4, 4, 2],
+        "channels": [20, 28, 36, 56],
+        "MIMO_output": 192,
+        "NbTxAntenna":4,
+        "NbRxAntenna":2,
+        "DetectionHead": "True",
+        "SegmentationHead": "False"
+    },
+    "dataset": {
+        "root_dir": "/imec/other/dl4ms/chu06/public/data/",
+        "data_folder":"simulation_sequential_rw_data_DDA_3targets_rx2_10000_doppler32/",
+        "geometry":{
+            "ranges": [512,896,1],
+            "resolution": [0.673828125,0.2],
+            "size": 3
+        },
+        "statistics":{
+            "input_mean":[-4.988471173343763e-13, 6.811717111474328e-13, -3.742954707026264e-14, 5.664388298212979e-13],
+            "input_std":[14086499.329319693, 14017060.862294227, 14064096.989762185, 14159729.175096326],
+            "reg_mean":[1.3386752638088977, 0.2969260171773329],
+            "reg_std":[2.3330910979893402, 0.6901617096777523]
+        }
+    },
+    "losses": {
+        "fct":"PixorLoss",
+        "classification": "FocalLoss",
+        "regression": "smoothL1Loss",
+        "weight": [1,100,100]
+    },
+    "lr_scheduler": {
+        "step_size": 10,
+        "gamma": 0.9
+    },
+    "optimizer": {
+        "lr": 1e-4
+    },
+    "num_epochs":500,
+    "dataloader": {
+        "mode":"simulated_sequential",
+        "split":[0.7,0.15,0.15],
+        "train": {
+            "batch_size": 4,
+            "num_workers": 4
+    	},
+        "val": {
+            "batch_size": 4,
+            "num_workers": 4
+        },
+        "test": {
+            "batch_size": 1,
+            "num_workers": 1
+        }
+    },
+    "output": {
+	"dir": "/imec/other/dl4ms/chu06/public/model_checkpoint/FFTRadNet_10000_change_model/"
+    }
+}

@@ -9,6 +9,8 @@ from shapely.geometry import Polygon
 from shapely.ops import unary_union
 import time
 
+from torchvision.ops import box_iou
+
 def RA_to_cartesian_box(data):
     L = 4
     W = 1.8
@@ -34,7 +36,8 @@ def perform_nms(valid_class_predictions, valid_box_predictions, nms_threshold):
         # get the IOUs of all boxes with the currently most certain bounding box
         try:
             ious = np.zeros((sorted_box_predictions.shape[0]))
-            ious[i + 1:] = bbox_iou(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
+            #ious[i + 1:] = bbox_iou(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
+            ious[i + 1:] = bbox_iou_pytorch(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
         except ValueError:
             break
         except IndexError:
@@ -46,6 +49,38 @@ def perform_nms(valid_class_predictions, valid_box_predictions, nms_threshold):
         sorted_class_predictions = sorted_class_predictions[overlap_mask]
 
     return sorted_class_predictions, sorted_box_predictions
+def convert_corners_to_xyxy(boxes):
+    """
+    Convert bounding boxes from corner points to [x1, y1, x2, y2] format.
+    
+    Args:
+        boxes (numpy.ndarray): Array of shape (N, 4, 2) representing N bounding boxes.
+                               Each bounding box is represented by 4 corner points (4x2).
+    
+    Returns:
+        torch.Tensor: Array of shape (N, 4) representing N bounding boxes in [x1, y1, x2, y2] format.
+    """
+    boxes = boxes.reshape(boxes.shape[0], 4, 2)
+    x_coords = boxes[:, :, 0]
+    y_coords = boxes[:, :, 1]
+    x1 = np.min(x_coords, axis=1)
+    y1 = np.min(y_coords, axis=1)
+    x2 = np.max(x_coords, axis=1)
+    y2 = np.max(y_coords, axis=1)
+    
+    xyxy_boxes = np.stack((x1, y1, x2, y2), axis=1)
+    return torch.tensor(xyxy_boxes, dtype=torch.float32)
+
+
+def bbox_iou_pytorch(box1, boxes):
+    # Convert to [x1, y1, x2, y2]
+    box1_xyxy = convert_corners_to_xyxy(box1[np.newaxis, :])
+    boxes_xyxy = convert_corners_to_xyxy(boxes)
+
+    # Calculate IoU using PyTorch
+    iou = box_iou(box1_xyxy, boxes_xyxy)
+    return iou.numpy()
+
 def bbox_iou(box1, boxes):
 
     # currently inspected box
@@ -55,7 +90,6 @@ def bbox_iou(box1, boxes):
     area_1 = rect_1.area
 
     # IoU of box1 with each of the boxes in "boxes"
-    print("number of boxs to compute: ", boxes.shape[0])
     ious = np.zeros(boxes.shape[0])
     for box_id in range(boxes.shape[0]):
         box2 = boxes[box_id]
@@ -82,7 +116,7 @@ def process_predictions_FFT(batch_predictions, confidence_threshold=0.1, nms_thr
     
     point_cloud_reg_predictions = RA_to_cartesian_box(batch_predictions)
     point_cloud_reg_predictions = np.asarray(point_cloud_reg_predictions)
-    point_cloud_class_predictions = batch_predictions[:,-1]
+    point_cloud_class_predictions = batch_predictions[:,-1] # batch_predictions :[R,A,C]; batch_predictions[:,-1]:C = map[0,range_bin,angle_bin]
 
     # get valid detections
     validity_mask = np.where(point_cloud_class_predictions > confidence_threshold, True, False)
@@ -202,13 +236,13 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
 
     F1_score = (np.mean(precision)*np.mean(recall))/((np.mean(precision) + np.mean(recall))/2)
 
-    output_file = 'detection_scores.txt'
-    #save_detection_scores(perfs, F1_score, output_file)
+    # output_file = 'detection_scores.txt'
+    # #save_detection_scores(perfs, F1_score, output_file)
 
-    print('------- Detection Scores ------------')
-    print('  mAP:',np.mean(perfs['precision']))
-    print('  mAR:',np.mean(perfs['recall']))
-    print('  F1 score:',F1_score)
+    # print('------- Detection Scores ------------')
+    # print('  mAP:',np.mean(perfs['precision']))
+    # print('  mAR:',np.mean(perfs['recall']))
+    # print('  F1 score:',F1_score)
 
     #print("number of ground truth : ", NbGT)
 
@@ -262,6 +296,7 @@ def GetDetMetrics(predictions,object_labels,threshold=0.2,range_min=5,range_max=
 
         for pid, prediction in enumerate(Object_predictions):
             iou = bbox_iou(prediction[1:], ground_truth_box_corners)
+            #iou = bbox_iou_pytorch(prediction[1:], ground_truth_box_corners)
             ids = np.where(iou>=IOU_threshold)[0]
 
             if(len(ids)>0):

@@ -26,7 +26,10 @@ from optuna.trial import TrialState
 import wandb
 from optuna.integration.wandb import WeightsAndBiasesCallback
 
-from model.FFTRadNet_noseg import FFTRadNet
+from model.FFTRadNet_redlay import FFTRadNet # can reduce layer not channels
+#from model.FFTRadNet_ddp import FFTRadNet # reduce layer and specific channels
+import time
+import tarfile
 
 def train(config, net, train_loader, optimizer, scheduler, history, kbar):
     net.train()
@@ -74,7 +77,8 @@ def objective(trial, config):
     with open(output_folder / exp_name / 'config.json', 'w') as outfile:
         json.dump(config, outfile)
 
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+
     enc = ra_encoder(geometry=config['dataset']['geometry'],
                      statistics=config['dataset']['statistics'],
                      regression_layer=2)
@@ -85,23 +89,27 @@ def objective(trial, config):
     # Create the model
     # Suggest value for mimo_layer
     mimo_layer = trial.suggest_int('mimo_layer', 64, 192, step=64)
+    detection_head_layers = trial.suggest_categorical('detection_head_layers', [4])
+    print('detection_head_layers: ', detection_head_layers)
 
     net = FFTRadNet(
         blocks=config['model']['backbone_block'],
         mimo_layer= mimo_layer,
         Ntx = config['model']['NbTxAntenna'],
         Nrx = config['model']['NbRxAntenna'],
-        channels=config['model']['channels'],
+        channels= config['model']['channels'],
         regression_layer=2,
+        DH_num_layers = detection_head_layers, # number of detection_head layers, default: 4
         detection_head=config['model']['DetectionHead']
     )
     net.to('cuda')
+    t_params = sum(p.numel() for p in net.parameters())
+    print("Network Parameters: ",t_params)
+    print(net)
 
     # Define hyperparameters to be tuned
-    lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True) # paper set :1e-4
-    #lr = float(config['optimizer']['lr'])
-    #step_size = int(config['lr_scheduler']['step_size'])
-    step_size = trial.suggest_int('step_size', 5, 20, step=5) # paper set :10
+    lr = trial.suggest_float('lr', 1e-5, 1e-2, log=True) # paper set :1e-4 lr = float(config['optimizer']['lr'])
+    step_size = trial.suggest_int('step_size', 5, 20, step=5) # paper set :10 step_size = int(config['lr_scheduler']['step_size'])
     gamma =  float(config['lr_scheduler']['gamma']) #trial.suggest_uniform('gamma', 0.1, 0.9)
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr)
     scheduler = lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
@@ -113,7 +121,7 @@ def objective(trial, config):
         num_epochs = 200
     
 
-    #num_epochs = int(config['num_epochs'])
+
     threshold = 0.2 #trial.suggest_categorical('threshold', [0.2]) # paper set 0.2
     
     history = {'train_loss': [], 'val_loss': [], 'lr': [], 'mAP': [], 'mAR': [], 'val_f1': [], 'train_f1': []}
@@ -123,6 +131,10 @@ def objective(trial, config):
     # init tracking experiment.
     # hyper-parameters, trial id are stored.
     config_optuna = dict(trial.params)
+    config_optuna["FPN_channels"] = config['model']['channels']
+    config_optuna["number_backbone_blocks"] = config['model']['backbone_block']
+    config_optuna["detection_head_layer"] = detection_head_layers
+    config_optuna["batch_size"] = batch_size
     config_optuna["trial.number"] = trial.number
     wandb.init(
         project=config['optuna_project'],
@@ -132,7 +144,7 @@ def objective(trial, config):
         reinit=True,
     )
 
-    for epoch in range(num_epochs):
+    for epoch in range(num_epochs): #num_epochs
         kbar = pkbar.Kbar(target=len(train_loader), epoch=epoch, num_epochs=num_epochs, width=20, always_stateful=False)
 
         loss,predictions, ground_truth  = train(config, net, train_loader, optimizer, scheduler, history, kbar)
@@ -181,7 +193,7 @@ def objective(trial, config):
             wandb.finish(quiet=True)
             raise optuna.exceptions.TrialPruned()
 
-        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_trialnumber_{:02d}_batch{:02d}_mimo{:02d}.pth'.format(epoch, loss, eval['mAP'], eval['mAR'], trial.number, batch_size, mimo_layer)
+        name_output_file = config['name']+'_epoch{:02d}_loss_{:.4f}_AP_{:.4f}_AR_{:.4f}_trialnumber_{:02d}_batch{:02d}.pth'.format(epoch, loss, eval['mAP'], eval['mAR'], trial.number, batch_size)
         filename = output_folder / exp_name / name_output_file
 
         checkpoint={}
@@ -190,19 +202,33 @@ def objective(trial, config):
         checkpoint['scheduler'] = scheduler.state_dict()
         checkpoint['epoch'] = epoch
         checkpoint['batch_size'] = batch_size
-        checkpoint['mimo_layer'] = mimo_layer
+        #checkpoint['mimo_layer'] = mimo_layer
         checkpoint['lr'] = lr
         checkpoint['step_size'] = step_size
         checkpoint['history'] = history
         checkpoint['detectionhead_output'] = predictions
 
 
+        
+        # Save the state dictionary as a .pth file
+        #torch.save(state_dict, filename)
         torch.save(checkpoint,filename)
-            
+
+        # Define the tar.gz file name
+        tar_gz_filename = filename.with_suffix('.tar.gz')
+
+        # Create a tar.gz file and add the .pth file to it
+        with tarfile.open(tar_gz_filename, 'w:gz') as tarf:
+            tarf.add(filename, arcname=name_output_file)
+
+        # Optionally, you can remove the original .pth file if you only want the tar.gz file
+        filename.unlink()
+
+        print(f"Model saved and tarred with gzip compression as: {tar_gz_filename}")          
         print('')
     
     # report the final validation accuracy to wandb
-    wandb.run.summary["final accuracy"] = F1_score
+    wandb.run.summary["final accuracy"] = eval['mAR']
     wandb.run.summary["state"] = "completed"
     wandb.finish(quiet=True)
 
@@ -225,14 +251,17 @@ if __name__ == '__main__':
 
     # Specific parameter combination for the first trial
     fixed_params = {
-        "lr": 1e-4,
+        "detection_head_layers" : 4,
+        "lr": 1.46e-3,
         "step_size": 10,
-        "mimo_layer": 192,
+        "mimo_layer": 128,
+        
     }
 
     # Create a FixedTrial object
     fixed_trial = optuna.trial.FixedTrial(fixed_params)
 
+    start_time = time.time()
     # Evaluate the objective function with the fixed parameters
     baseline_score = objective(fixed_trial, config)
 
@@ -243,6 +272,8 @@ if __name__ == '__main__':
                                            n_warmup_steps=30, interval_steps=10))
     
     #study = optuna.create_study(direction='maximize')
+    multi_gpu_time = time.time() - start_time
+    #print(f"2 GPU training time: {multi_gpu_time:.2f} seconds\n")
 
     # Add the baseline trial to the study
     study.add_trial(optuna.create_trial(
@@ -253,6 +284,7 @@ if __name__ == '__main__':
             "lr": optuna.distributions.FloatDistribution(1e-5, 1e-2, log=True),
             "step_size": optuna.distributions.IntDistribution(5, 20, step=5),
             "mimo_layer": optuna.distributions.IntDistribution(64, 192, step=64),
+            "detection_head_layers" : optuna.distributions.IntDistribution(1, 4, step=1)
         }
     ))
  

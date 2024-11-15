@@ -36,8 +36,8 @@ def perform_nms(valid_class_predictions, valid_box_predictions, nms_threshold):
         # get the IOUs of all boxes with the currently most certain bounding box
         try:
             ious = np.zeros((sorted_box_predictions.shape[0]))
-            #ious[i + 1:] = bbox_iou(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
-            ious[i + 1:] = bbox_iou_pytorch(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
+            ious[i + 1:] = bbox_iou(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
+            #ious[i + 1:] = bbox_iou_pytorch(sorted_box_predictions[i, :], sorted_box_predictions[i + 1:, :])
         except ValueError:
             break
         except IndexError:
@@ -116,7 +116,12 @@ def process_predictions_FFT(batch_predictions, confidence_threshold=0.1, nms_thr
     
     point_cloud_reg_predictions = RA_to_cartesian_box(batch_predictions)
     point_cloud_reg_predictions = np.asarray(point_cloud_reg_predictions)
-    point_cloud_class_predictions = batch_predictions[:,-1]
+    point_cloud_class_predictions = batch_predictions[:,-1] # batch_predictions[:,-1] = C =map[0,range_bin,angle_bin]
+            # R = range_bin*4*self.geometry['resolution'][0] + map[1,range_bin,angle_bin] * self.statistics['reg_std'][0] + self.statistics['reg_mean'][0]
+            # A = (angle_bin-self.OUTPUT_DIM[2]/2)*4*self.geometry['resolution'][1] + map[2,range_bin,angle_bin] * self.statistics['reg_std'][1] + self.statistics['reg_mean'][1]
+            # C = map[0,range_bin,angle_bin]
+        
+            # coordinates.append([R,A,C]) = batch_predictions
 
     # get valid detections
     validity_mask = np.where(point_cloud_class_predictions > confidence_threshold, True, False)
@@ -198,6 +203,7 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
                 used_gt = np.zeros(len(ground_truth_box_corners))
                 for pid, prediction in enumerate(Object_predictions):
                     iou = bbox_iou(prediction[1:], ground_truth_box_corners)
+                    #iou = bbox_iou_pytorch(prediction[1:], ground_truth_box_corners)
                     ids = np.where(iou>=IOU_threshold)[0]
 
                     
@@ -228,36 +234,27 @@ def GetFullMetrics(predictions,object_labels,range_min=5,range_max=100,IOU_thres
             precision.append( 0) # When there is a detection, how much I m sure
             recall.append(0)
 
-        #RangeError.append(range_error/nbObjects)
-        #AngleError.append(angle_error/nbObjects)
+        RangeError.append(range_error/nbObjects)
+        AngleError.append(angle_error/nbObjects)
 
-    perfs['precision']=precision
-    perfs['recall']=recall
+    mAP=np.mean(precision)
+    mAR=np.mean(recall)
+    #print("mAP: ", mAP)
+    #print("precision: ", precision)
+    #print("mAR: ", mAR)
+    #print("recall: ", recall)
 
-    F1_score = (np.mean(precision)*np.mean(recall))/((np.mean(precision) + np.mean(recall))/2)
+    F1_score = (mAP*mAR)/((mAP + mAR)/2)
 
-    output_file = 'detection_scores.txt'
-    #save_detection_scores(perfs, F1_score, output_file)
+    # output_file = 'detection_scores.txt'
+    # print("Saving scores to:", output_file)
+    # with open(output_file, 'a') as f:
+    #     f.write('------- Detection Scores ------------\n')
+    #     f.write('  mAP: {0}\n'.format(np.mean(perfs['precision'])))
+    #     f.write('  mAR: {0}\n'.format(np.mean(perfs['recall'])))
+    #     f.write('  F1 score: {0}\n'.format(F1_score))
+    return mAP, mAR, F1_score, np.mean(RangeError), np.mean(AngleError)
 
-    print('------- Detection Scores ------------')
-    print('  mAP:',np.mean(perfs['precision']))
-    print('  mAR:',np.mean(perfs['recall']))
-    print('  F1 score:',F1_score)
-
-    #print("number of ground truth : ", NbGT)
-
-    # print('------- Regression Errors------------')
-    # print('  Range Error:',np.mean(RangeError),'m')
-    # print('  Angle Error:',np.mean(AngleError),'degree')
-### for saving the print
-def save_detection_scores(perfs, F1_score, output_file):
-    
-    print("Saving scores to:", output_file)
-    with open(output_file, 'a') as f:
-        f.write('------- Detection Scores ------------\n')
-        f.write('  mAP: {0}\n'.format(np.mean(perfs['precision'])))
-        f.write('  mAR: {0}\n'.format(np.mean(perfs['recall'])))
-        f.write('  F1 score: {0}\n'.format(F1_score))
 
 def GetDetMetrics(predictions,object_labels,threshold=0.2,range_min=5,range_max=70,IOU_threshold=0.2):
 
@@ -295,8 +292,8 @@ def GetDetMetrics(predictions,object_labels,threshold=0.2,range_min=5,range_max=
         used_gt = np.zeros(len(ground_truth_box_corners))
 
         for pid, prediction in enumerate(Object_predictions):
-            #iou = bbox_iou(prediction[1:], ground_truth_box_corners)
-            iou = bbox_iou_pytorch(prediction[1:], ground_truth_box_corners)
+            iou = bbox_iou(prediction[1:], ground_truth_box_corners)
+            #iou = bbox_iou_pytorch(prediction[1:], ground_truth_box_corners)
             ids = np.where(iou>=IOU_threshold)[0]
 
             if(len(ids)>0):

@@ -177,7 +177,7 @@ def run_evaluation(net, loader,encoder, gpu, optuna_config, check_perf=False, de
 
                 #metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
                 #            threshold=0.2,range_min=5,range_max=100) 
-                metrics.update(pred_map[0],true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
+                metrics.update(pred_map,true_map,np.asarray(encoder.decode(pred_obj,0.05)),true_obj,
                            threshold=0.2,range_min=0,range_max=345) 
                 # metrics.update(pred_map,true_map,np.asarray(encoder.decode(pred_obj,optuna_config['threshold'])),true_obj,
                 #              threshold=optuna_config['threshold'],range_min=0,range_max=345) 
