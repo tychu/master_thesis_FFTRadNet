@@ -14,9 +14,7 @@ import torch.nn.functional as F
 from utils.evaluation import run_evaluation_, run_FullEvaluation_, run_evaluation, run_iEvaluation # without trial
 import torch.nn as nn
 from loss import pixor_loss
-
 from dataset.matlab_dataset_ddp import MATLAB
-
 from pathlib import Path
 from datetime import datetime
 import re
@@ -56,6 +54,13 @@ def extract_and_load_model(root, file):
         return None
     
 def extract_params_from_filename(filename):
+    """
+        Extract needed paramter information
+        Args:
+            filename: the filename of checkpoint.
+        Returns:
+            trial_num, batch_size, mimo_layer: number of trial, batch size, number of mimo layer
+    """
     trial_match = re.search(r'_trialnumber_(\d+)', filename)
     batch_match = re.search(r'_batch(\d+)', filename)
     mimo_match = re.search(r'_mimo(\d+)', filename)
@@ -75,6 +80,25 @@ def extract_params_from_filename(filename):
 
 
 def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, trial_num, check_epoch):
+    """
+        Run validation evaluation for a given checkpoint.
+
+        This method evaluates the model on the validation data, calculates local and global metrics,
+        and computes F1 score, mean Average Precision (mAP), and mean Average Recall (mAR).
+
+        Args:
+            config (dict): The main configuration dictionary containing dataset, model, and training settings.
+            base_dir (string): The directory pathway.
+            checkpoint (string): The directory path to the checkpoint file.
+            batch_size (int): The batch size of the checkpoint model
+            mimo_layer (int): The number of mimo layer of the checkpoint model
+            trial_num (int): The number (i-th) of optuna trial of the checkpoint model
+            check_epoch (int): Specified the epoch to do the evaluation
+
+
+        Returns:
+            NaN (saved evaluation file)
+    """
     # Setup random seed
     torch.manual_seed(config['seed'])
     np.random.seed(config['seed'])
@@ -103,7 +127,7 @@ def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, tr
     
     # Create the model
     net = FFTRadNet(blocks=config['model']['backbone_block'],
-                    mimo_layer= _mimo_layer, #config['model']['MIMO_output'],
+                    mimo_layer= _mimo_layer,
                     Ntx = config['model']['NbTxAntenna'],
                     Nrx = config['model']['NbRxAntenna'],
                     channels=config['model']['channels'], 
@@ -117,12 +141,7 @@ def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, tr
     dict = torch.load(checkpoint)
     net.load_state_dict(dict['net_state_dict'])
     
-    print('===========  Running the evaluation ==================:')
-    
-    #run_iEvaluation(base_dir, net,train_loader,enc, check_epoch, trial_num, datamode='train')
-
-    #run_iEvaluation(base_dir, net,val_loader,enc, check_epoch, trial_num, datamode='val')
-    
+    print('===========  Running the evaluation ==================:')    
     map_val, mar_val, f1_score_val, mRange_val, mAngle_val = run_FullEvaluation_(net,val_loader,enc)
     map_train, mar_train, f1_score_train, mRange_train, mAngle_train = run_FullEvaluation_(net,train_loader,enc)
     map_test, mar_test, f1_score_test, mRange_test, mAngle_test = run_FullEvaluation_(net,test_loader,enc)
@@ -152,8 +171,9 @@ def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, tr
         f.write('  Range Error:: {0}\n'.format(mRange_test))
         f.write('  Angle Error: {0}\n'.format(mAngle_test))   
     
-
+    # set the threshold for evaluation probability matrix
     thresholds = [0.2]
+
     for threshold in thresholds:
 
         eval = run_evaluation_(net, val_loader, enc, threshold, check_perf=True,
@@ -167,9 +187,6 @@ def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, tr
         test = run_evaluation_(net, test_loader, enc, threshold, check_perf=True,
                                 detection_loss=pixor_loss, segmentation_loss=None,
                                 losses_params=config['losses']) # only run some plot to check the output    
-    
-
-
 
         if eval['mAP'] + eval['mAR'] == 0:
             F1_score = 0
@@ -188,8 +205,8 @@ def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, tr
         else:
             F1_score_test = (test['mAP']*test['mAR'])/((test['mAP'] + test['mAR'])/2)
             print("train F1: ", F1_score_test)
-        # save the score of F1, mAP, mAR
         
+        # save the score of F1, mAP, mAR        
         stat_file = os.path.join(base_dir, 'evaluation_scores_10000samples.txt')
         with open(stat_file, 'a') as f:
             f.write(f"Checkpoint: {checkpoint}\n")
@@ -204,6 +221,15 @@ def evaluate_checkpoint(config, base_dir, checkpoint, batch_size, mimo_layer, tr
             f.write("\n")
 
 def main(config, base_dir, check_epoch):
+    """
+        Run evaluation for a given checkpoint folder.
+
+        Args:
+            config (dict): The main configuration dictionary containing dataset, model, and training settings.
+            base_dir (string): The directory pathway.
+            check_epoch (int): Specified the epoch to do the evaluation
+
+    """
     # base_dir: with multiple checkpoint folder
     batch_size = 0
     mimo_layer = 0
@@ -241,6 +267,19 @@ def main(config, base_dir, check_epoch):
 
 
 if __name__ == '__main__':
+    """
+    Main entry point for running evaluation.
+
+    This script performs the following:
+    1. Parses command-line arguments for configuration, snapshot frequency, and the number of trials.
+    2. Loads the configuration file.
+
+    Command-line Arguments:
+        -c, --config: Path to the configuration file (default: 'config.json').
+        -d, --checkpoint_dir: The pathway to the folder that save multiple checkpoint files.
+        -e, --epoch: Specified the epoch to check evaluation.
+    """
+
     # PARSE THE ARGS
     parser = argparse.ArgumentParser(description='FFTRadNet Evaluation')
     parser.add_argument('-c', '--config', default='config.json', type=str,
@@ -249,12 +288,12 @@ if __name__ == '__main__':
                         help='Directory containing checkpoint files')
     parser.add_argument('-e', '--epoch', required=True, type=int,
                         help='the sprcific epoch to check')
-
     args = parser.parse_args()
-    print(args)
 
+    # Load configuration from JSON file
     config = json.load(open(args.config))
-    
+
+    # Call main function with parsed arguments
     main(config, args.checkpoint_dir, args.epoch)
 
 
